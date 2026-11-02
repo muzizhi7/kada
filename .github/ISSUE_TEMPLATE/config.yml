@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Usage and troubleshooting / 使用说明
+    url: https://github.com/muzizhi7/kada/blob/main/SUPPORT.md
+    about: Start with the setup and troubleshooting notes.
+  - name: Security / 私下报告安全问题
+    url: https://github.com/muzizhi7/kada/blob/main/SECURITY.md
+    about: Do not disclose vulnerabilities or credentials in a public issue.

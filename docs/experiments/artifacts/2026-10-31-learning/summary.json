@@ -1,0 +1,135 @@
+{
+  "batches": [
+    {
+      "arms": [
+        {
+          "arm": "off",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.040246319999999995,
+          "amortizedQualifiedCostUsd": 0.0067077199999999995,
+          "discoveryCostUsd": 0.013515888,
+          "reusedMethods": 0
+        },
+        {
+          "arm": "on",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.0401565,
+          "amortizedQualifiedCostUsd": 0.00669275,
+          "discoveryCostUsd": 0.013163267999999999,
+          "reusedMethods": 0
+        },
+        {
+          "arm": "pi",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.045600396,
+          "amortizedQualifiedCostUsd": 0.007600066,
+          "discoveryCostUsd": 0.016873284000000002,
+          "reusedMethods": 0
+        }
+      ],
+      "totalEstimatedCostUsd": 0.126003216,
+      "sourceUnchanged": true,
+      "note": "Development sequence only; all initial discovery, failures and learning requests are included. No general advantage claimed.",
+      "batch": 1,
+      "record": "549fd75f-eb92-4cf7-a543-dd58338053df",
+      "root_scalar_sensitivity": {
+        "off": 4,
+        "on": 6,
+        "pi": 4
+      }
+    },
+    {
+      "arms": [
+        {
+          "arm": "off",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.039854556,
+          "amortizedQualifiedCostUsd": 0.006642426,
+          "discoveryCostUsd": 0.014060807999999998,
+          "reusedMethods": 0
+        },
+        {
+          "arm": "on",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.054935064,
+          "amortizedQualifiedCostUsd": 0.009155844,
+          "discoveryCostUsd": 0.014682468,
+          "reusedMethods": 0
+        },
+        {
+          "arm": "pi",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.048887208,
+          "amortizedQualifiedCostUsd": 0.008147868,
+          "discoveryCostUsd": 0.017535540000000002,
+          "reusedMethods": 0
+        }
+      ],
+      "priorCostUsd": 0.126003216,
+      "offset": 3,
+      "totalEstimatedCostUsd": 0.143676828,
+      "sourceUnchanged": true,
+      "note": "Development sequence only; all initial discovery, failures and learning requests are included. No general advantage claimed.",
+      "batch": 2,
+      "record": "0204fc32-89bd-45b7-a6e2-a4f4506af34e",
+      "root_scalar_sensitivity": {
+        "off": 5,
+        "on": 5,
+        "pi": 4
+      }
+    },
+    {
+      "arms": [
+        {
+          "arm": "off",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.036987684,
+          "amortizedQualifiedCostUsd": 0.006164614,
+          "discoveryCostUsd": 0.014077836,
+          "reusedMethods": 0
+        },
+        {
+          "arm": "on",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.053704055999999986,
+          "amortizedQualifiedCostUsd": 0.008950675999999998,
+          "discoveryCostUsd": 0.019416155999999997,
+          "reusedMethods": 2
+        },
+        {
+          "arm": "pi",
+          "tasks": 6,
+          "qualified": 6,
+          "estimatedCostUsd": 0.04455517199999999,
+          "amortizedQualifiedCostUsd": 0.007425861999999998,
+          "discoveryCostUsd": 0.013039367999999999,
+          "reusedMethods": 0
+        }
+      ],
+      "priorCostUsd": 0.269680044,
+      "offset": 6,
+      "totalEstimatedCostUsd": 0.13524691199999997,
+      "sourceUnchanged": true,
+      "note": "Development sequence only; all initial discovery, failures and learning requests are included. No general advantage claimed.",
+      "batch": 3,
+      "record": "302ef8f0-93e6-4ab7-8f4b-f9b65fe04a3c",
+      "root_scalar_sensitivity": {
+        "off": 4,
+        "on": 6,
+        "pi": 5
+      }
+    }
+  ],
+  "total_paid_runs": 54,
+  "total_estimated_model_cost_usd": 0.404926956,
+  "actual_saved_script_uses": 2,
+  "meaning": "Development fixtures, not held-out task superiority. Original checks preserved; scalar-root sensitivity is a separate post-run reading of the existing contract. Missing scope details and provider invoice data remain limitations."
+}

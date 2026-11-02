@@ -1,0 +1,14 @@
+{
+  "dataDir": ".harness",
+  "port": 4317,
+  "maxSubagents": 3,
+  "maxDurationMs": 3600000,
+  "maxEstimatedCostUsd": 1,
+  "compactAtTokens": 48000,
+  "review": false,
+  "web": true,
+  "learning": false,
+  "maxReworks": 3,
+  "maxStalls": 2,
+  "discovery": true
+}

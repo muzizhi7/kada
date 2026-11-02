@@ -1,0 +1,6 @@
+stage,status,costUsd,machinePass,developerFeedbackMessages
+initial-preparation,stopped-before-confirmation,0.008929847999999999,,0
+initial-reference,done,0.044955348,True,0
+reference,done,0.032096628,True,0
+candidate-auto,completed,0.036423492,True,0
+candidate-document-correction-increment,completed,0.004917060000000001,True,1

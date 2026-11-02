@@ -1,0 +1,9 @@
+sequence,task,repeat,arm,execution,machinePass,strictQualifiedDelivery,bundleInterpretationApplied,semanticPass,artifactPass,qualifiedDelivery,wrongHostCompletion,goodArtifactNotDelivered,feedbackMessages,requestsUserInput,estimatedCostUsd,elapsedMinutes
+1,files-normalize,1,pi,needs_attention,True,False,False,True,True,False,False,True,0,False,0.028974516000000002,1.5624333333333333
+2,files-normalize,1,extension,completed,False,False,True,True,True,True,False,False,3,False,0.077236524,3.08525
+3,code-clsx,1,extension,completed,False,False,False,False,False,False,True,False,1,False,0.025649724,1.2514833333333333
+4,code-clsx,1,pi,completed,True,True,False,True,True,True,False,False,0,False,0.037785984,2.0613
+5,files-normalize,2,extension,completed,False,False,False,False,False,False,True,False,1,False,0.03782174399999999,2.0298833333333333
+6,files-normalize,2,pi,needs_attention,True,False,False,True,True,False,False,True,0,False,0.025803876000000003,1.2245166666666667
+7,code-clsx,2,pi,completed,True,True,False,True,True,True,False,False,0,False,0.07737884399999997,3.2653333333333334
+8,code-clsx,2,extension,completed,True,True,False,True,True,True,False,False,0,False,0.038871708000000005,2.0279666666666665

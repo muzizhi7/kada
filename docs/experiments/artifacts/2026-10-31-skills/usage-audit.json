@@ -1,0 +1,364 @@
+[
+  {
+    "arm": "legacy",
+    "family": "files",
+    "variant": 9,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "task_status": 1,
+      "bash": 4,
+      "write": 2,
+      "task_verify": 1,
+      "task_learn": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "off",
+    "family": "files",
+    "variant": 9,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 4,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "on",
+    "family": "files",
+    "variant": 9,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "task_status": 1,
+      "bash": 6,
+      "write": 2,
+      "task_verify": 2,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "task_verify": 1
+    }
+  },
+  {
+    "arm": "pi",
+    "family": "files",
+    "variant": 9,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "task_status": 1,
+      "bash": 7,
+      "write": 2,
+      "task_verify": 2,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "task_verify": 1
+    }
+  },
+  {
+    "arm": "off",
+    "family": "files",
+    "variant": 10,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 6,
+      "read": 1,
+      "write": 2,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "on",
+    "family": "files",
+    "variant": 10,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 4,
+      "write": 2,
+      "task_verify": 2,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "task_verify": 1
+    }
+  },
+  {
+    "arm": "pi",
+    "family": "files",
+    "variant": 10,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "task_status": 1,
+      "bash": 4,
+      "write": 2,
+      "read": 1,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "legacy",
+    "family": "files",
+    "variant": 10,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 5,
+      "task_status": 1,
+      "task_method": 1,
+      "write": 1,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "on",
+    "family": "files",
+    "variant": 11,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "task_status": 1,
+      "bash": 7,
+      "write": 2,
+      "task_verify": 2,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "task_verify": 1
+    }
+  },
+  {
+    "arm": "pi",
+    "family": "files",
+    "variant": 11,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 6,
+      "task_status": 1,
+      "read": 1,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "legacy",
+    "family": "files",
+    "variant": 11,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "task_status": 1,
+      "bash": 6,
+      "task_method": 1,
+      "write": 1,
+      "task_verify": 1,
+      "task_learn": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "bash": 1
+    }
+  },
+  {
+    "arm": "off",
+    "family": "files",
+    "variant": 11,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 4,
+      "read": 4,
+      "write": 2,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "legacy",
+    "family": "code",
+    "variant": 9,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 3,
+      "task_status": 1,
+      "write": 3,
+      "edit": 1,
+      "task_verify": 2,
+      "task_learn": 1,
+      "task_submit": 2
+    },
+    "toolErrors": {
+      "bash": 1
+    }
+  },
+  {
+    "arm": "off",
+    "family": "code",
+    "variant": 9,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 4,
+      "read": 1,
+      "write": 3,
+      "task_verify": 2,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "bash": 1,
+      "task_verify": 1
+    }
+  },
+  {
+    "arm": "on",
+    "family": "code",
+    "variant": 9,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "task_status": 1,
+      "bash": 6,
+      "write": 3,
+      "edit": 1,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "bash": 1
+    }
+  },
+  {
+    "arm": "pi",
+    "family": "code",
+    "variant": 9,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 5,
+      "write": 1,
+      "task_verify": 2,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "bash": 1,
+      "task_verify": 1
+    }
+  },
+  {
+    "arm": "off",
+    "family": "code",
+    "variant": 10,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 5,
+      "write": 3,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "on",
+    "family": "code",
+    "variant": 10,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 6,
+      "task_status": 1,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "pi",
+    "family": "code",
+    "variant": 10,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 6,
+      "write": 3,
+      "task_verify": 2,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "task_verify": 1
+    }
+  },
+  {
+    "arm": "legacy",
+    "family": "code",
+    "variant": 10,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 4,
+      "write": 2,
+      "task_verify": 2,
+      "task_submit": 2,
+      "task_status": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "on",
+    "family": "code",
+    "variant": 11,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 10,
+      "task_status": 1,
+      "read": 4,
+      "write": 3,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "pi",
+    "family": "code",
+    "variant": 11,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "read": 1,
+      "bash": 6,
+      "task_verify": 2,
+      "task_submit": 1
+    },
+    "toolErrors": {
+      "bash": 1,
+      "task_verify": 1
+    }
+  },
+  {
+    "arm": "legacy",
+    "family": "code",
+    "variant": 11,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "bash": 3,
+      "write": 1,
+      "task_status": 1,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  },
+  {
+    "arm": "off",
+    "family": "code",
+    "variant": 11,
+    "responseCostMatchesPiTotal": true,
+    "toolCalls": {
+      "task_status": 1,
+      "bash": 4,
+      "write": 1,
+      "task_verify": 1,
+      "task_submit": 1
+    },
+    "toolErrors": {}
+  }
+]

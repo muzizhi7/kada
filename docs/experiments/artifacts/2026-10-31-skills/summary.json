@@ -1,0 +1,118 @@
+{
+  "version": "0.7.0",
+  "date": "2026-10-31",
+  "model": {
+    "provider": "deepseek",
+    "modelId": "deepseek-flash"
+  },
+  "arms": [
+    {
+      "arm": "legacy",
+      "tasks": 6,
+      "fixedQualified": 6,
+      "supplementaryQualified": 6,
+      "estimatedCostUsd": 0.043504704,
+      "amortizedSupplementaryQualifiedCostUsd": 0.007250784,
+      "modelResponses": 54,
+      "hostReworks": 2,
+      "operatorMessages": 0,
+      "exactSavedScriptsReused": 2,
+      "capturedSkills": 0,
+      "authoredSkillReads": 0,
+      "managedSkillReads": 0,
+      "familyCostUsd": {
+        "files": 0.021407951999999997,
+        "code": 0.022096752
+      },
+      "tokens": {
+        "totalTokens": 521066,
+        "inputTokens": 64296,
+        "outputTokens": 17986,
+        "cacheReadTokens": 438784
+      }
+    },
+    {
+      "arm": "off",
+      "tasks": 6,
+      "fixedQualified": 6,
+      "supplementaryQualified": 5,
+      "estimatedCostUsd": 0.041656872000000005,
+      "amortizedSupplementaryQualifiedCostUsd": 0.008331374400000001,
+      "modelResponses": 49,
+      "hostReworks": 0,
+      "operatorMessages": 0,
+      "exactSavedScriptsReused": 0,
+      "capturedSkills": 0,
+      "authoredSkillReads": 2,
+      "managedSkillReads": 0,
+      "familyCostUsd": {
+        "files": 0.021359483999999998,
+        "code": 0.020297388
+      },
+      "tokens": {
+        "totalTokens": 409232,
+        "inputTokens": 52918,
+        "outputTokens": 19802,
+        "cacheReadTokens": 336512
+      }
+    },
+    {
+      "arm": "on",
+      "tasks": 6,
+      "fixedQualified": 6,
+      "supplementaryQualified": 6,
+      "estimatedCostUsd": 0.053388492,
+      "amortizedSupplementaryQualifiedCostUsd": 0.008898082,
+      "modelResponses": 66,
+      "hostReworks": 0,
+      "operatorMessages": 0,
+      "exactSavedScriptsReused": 0,
+      "capturedSkills": 0,
+      "authoredSkillReads": 0,
+      "managedSkillReads": 0,
+      "familyCostUsd": {
+        "files": 0.022956156,
+        "code": 0.030432336
+      },
+      "tokens": {
+        "totalTokens": 671995,
+        "inputTokens": 65041,
+        "outputTokens": 25322,
+        "cacheReadTokens": 581632
+      }
+    },
+    {
+      "arm": "pi",
+      "tasks": 6,
+      "fixedQualified": 6,
+      "supplementaryQualified": 6,
+      "estimatedCostUsd": 0.043180812,
+      "amortizedSupplementaryQualifiedCostUsd": 0.0071968019999999995,
+      "modelResponses": 54,
+      "hostReworks": 0,
+      "operatorMessages": 0,
+      "exactSavedScriptsReused": 0,
+      "capturedSkills": 0,
+      "authoredSkillReads": 0,
+      "managedSkillReads": 0,
+      "familyCostUsd": {
+        "files": 0.023269896,
+        "code": 0.019910916
+      },
+      "tokens": {
+        "totalTokens": 476717,
+        "inputTokens": 55449,
+        "outputTokens": 20116,
+        "cacheReadTokens": 401152
+      }
+    }
+  ],
+  "sourceUnchanged": true,
+  "totalEstimatedCostUsd": 0.18173087999999998,
+  "elapsedExecutionMs": 513164,
+  "usageAuditAllMatched": true,
+  "unreportedLocalCpuOrProviderCharges": "not measured; Pi model estimates are not the supplier invoice",
+  "scope": "Known development families, new input variants 9-11, each run once. Original registered check and post-run supplementary grouping interpretation are reported separately. No statistical or general cost/quality superiority claim.",
+  "supplementaryInterpretation": "Filter paid rows before grouping. A currency with a paid zero remains; a currency represented only by void rows is absent. This follows how the original expected totals were generated. If all encountered currencies including void-only are intended, clarify the brief; do not silently replace the original 6/6 score.",
+  "decision": "Keep native Skills and minimal adapters; learning stays disabled by default. No proven quality-preserving savings; new enabled tasks saved no Skill in this batch."
+}

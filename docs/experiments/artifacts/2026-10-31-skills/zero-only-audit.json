@@ -1,0 +1,111 @@
+[
+  {
+    "arm": "legacy",
+    "variant": 9,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "legacy",
+    "variant": 10,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "legacy",
+    "variant": 11,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "off",
+    "variant": 9,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "off",
+    "variant": 10,
+    "passed": false,
+    "actual": {
+      "VOID": 0,
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "off",
+    "variant": 11,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "on",
+    "variant": 9,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "on",
+    "variant": 10,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "on",
+    "variant": 11,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "pi",
+    "variant": 9,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "pi",
+    "variant": 10,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  },
+  {
+    "arm": "pi",
+    "variant": 11,
+    "passed": true,
+    "actual": {
+      "ZERO": 0
+    },
+    "exitCode": 0
+  }
+]

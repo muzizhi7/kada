@@ -1,0 +1,386 @@
+{
+  "basis": "Final development batch only; complete task totals, not marginal causal costs. Rates and totals reconcile with stored Pi usage.",
+  "ratesUsdPerMillion": {
+    "nonCachedInput": 0.3,
+    "output": 1.2,
+    "cacheRead": 0.006
+  },
+  "totals": {
+    "off": {
+      "input": 0.0152013,
+      "output": 0.0201444,
+      "cache": 0.001641984,
+      "inputTokens": 50671.0,
+      "outputTokens": 16787.0,
+      "cachedTokens": 273664.0,
+      "totalTokens": 341122.0,
+      "requests": 44.0
+    },
+    "on": {
+      "input": 0.021183,
+      "output": 0.028860000000000004,
+      "cache": 0.003661056,
+      "inputTokens": 70610.0,
+      "outputTokens": 24050.0,
+      "cachedTokens": 610176.0,
+      "totalTokens": 704836.0,
+      "requests": 66.0
+    },
+    "pi": {
+      "input": 0.0160449,
+      "output": 0.0262224,
+      "cache": 0.002287872,
+      "inputTokens": 53483.0,
+      "outputTokens": 21852.0,
+      "cachedTokens": 381312.0,
+      "totalTokens": 456647.0,
+      "requests": 54.0
+    }
+  },
+  "runs": [
+    {
+      "family": "files",
+      "variant": 6,
+      "arm": "off",
+      "requests": 7,
+      "tools": {
+        "task_status": 1,
+        "bash": 5,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0029343,
+        "output": 0.0029964,
+        "cache": 0.000279552
+      },
+      "usd": 0.0062102519999999994
+    },
+    {
+      "family": "files",
+      "variant": 6,
+      "arm": "on",
+      "requests": 9,
+      "tools": {
+        "task_status": 1,
+        "bash": 5,
+        "read": 1,
+        "write": 2,
+        "task_verify": 1,
+        "task_learn": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0037656,
+        "output": 0.004728,
+        "cache": 0.000519168
+      },
+      "usd": 0.009012767999999999
+    },
+    {
+      "family": "files",
+      "variant": 6,
+      "arm": "pi",
+      "requests": 9,
+      "tools": {
+        "bash": 5,
+        "read": 1,
+        "write": 2,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0022413,
+        "output": 0.0036107999999999995,
+        "cache": 0.000317952
+      },
+      "usd": 0.006170052
+    },
+    {
+      "family": "files",
+      "variant": 7,
+      "arm": "on",
+      "requests": 8,
+      "tools": {
+        "bash": 5,
+        "task_status": 1,
+        "task_method": 1,
+        "write": 1,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0030516,
+        "output": 0.00288,
+        "cache": 0.000370176
+      },
+      "usd": 0.006301775999999999
+    },
+    {
+      "family": "files",
+      "variant": 7,
+      "arm": "pi",
+      "requests": 9,
+      "tools": {
+        "task_status": 1,
+        "bash": 6,
+        "write": 2,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0032067,
+        "output": 0.0045648,
+        "cache": 0.000451584
+      },
+      "usd": 0.008223083999999999
+    },
+    {
+      "family": "files",
+      "variant": 7,
+      "arm": "off",
+      "requests": 6,
+      "tools": {
+        "bash": 3,
+        "task_status": 1,
+        "write": 2,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0023163,
+        "output": 0.002622,
+        "cache": 0.000205824
+      },
+      "usd": 0.005144124
+    },
+    {
+      "family": "files",
+      "variant": 8,
+      "arm": "pi",
+      "requests": 7,
+      "tools": {
+        "task_status": 1,
+        "bash": 4,
+        "write": 2,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0029877,
+        "output": 0.0037668,
+        "cache": 0.000316416
+      },
+      "usd": 0.007070915999999999
+    },
+    {
+      "family": "files",
+      "variant": 8,
+      "arm": "off",
+      "requests": 6,
+      "tools": {
+        "task_status": 1,
+        "bash": 4,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0021837,
+        "output": 0.0027024,
+        "cache": 0.00019430400000000002
+      },
+      "usd": 0.005080404
+    },
+    {
+      "family": "files",
+      "variant": 8,
+      "arm": "on",
+      "requests": 8,
+      "tools": {
+        "task_status": 1,
+        "bash": 5,
+        "task_method": 1,
+        "write": 1,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.003162,
+        "output": 0.0024156,
+        "cache": 0.000384768
+      },
+      "usd": 0.005962367999999999
+    },
+    {
+      "family": "code",
+      "variant": 6,
+      "arm": "off",
+      "requests": 10,
+      "tools": {
+        "bash": 5,
+        "task_verify": 2,
+        "task_submit": 2,
+        "task_status": 1
+      },
+      "costs": {
+        "input": 0.00282,
+        "output": 0.0046343999999999995,
+        "cache": 0.00041318400000000003
+      },
+      "usd": 0.007867584
+    },
+    {
+      "family": "code",
+      "variant": 6,
+      "arm": "on",
+      "requests": 11,
+      "tools": {
+        "bash": 4,
+        "task_status": 1,
+        "write": 3,
+        "task_verify": 2,
+        "task_submit": 2
+      },
+      "costs": {
+        "input": 0.0034322999999999997,
+        "output": 0.0063636,
+        "cache": 0.0006074880000000001
+      },
+      "usd": 0.010403387999999998
+    },
+    {
+      "family": "code",
+      "variant": 6,
+      "arm": "pi",
+      "requests": 8,
+      "tools": {
+        "bash": 4,
+        "read": 1,
+        "write": 3,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0021825,
+        "output": 0.0044088,
+        "cache": 0.000278016
+      },
+      "usd": 0.0068693159999999994
+    },
+    {
+      "family": "code",
+      "variant": 7,
+      "arm": "on",
+      "requests": 9,
+      "tools": {
+        "bash": 2,
+        "write": 2,
+        "task_verify": 2,
+        "task_submit": 2,
+        "task_status": 1
+      },
+      "costs": {
+        "input": 0.0032142,
+        "output": 0.004098,
+        "cache": 0.000379392
+      },
+      "usd": 0.007691591999999999
+    },
+    {
+      "family": "code",
+      "variant": 7,
+      "arm": "pi",
+      "requests": 10,
+      "tools": {
+        "bash": 6,
+        "task_status": 1,
+        "write": 2,
+        "edit": 1,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0026772,
+        "output": 0.0047688,
+        "cache": 0.000423168
+      },
+      "usd": 0.007869168
+    },
+    {
+      "family": "code",
+      "variant": 7,
+      "arm": "off",
+      "requests": 6,
+      "tools": {
+        "task_status": 1,
+        "bash": 2,
+        "write": 3,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0023066999999999996,
+        "output": 0.0033851999999999997,
+        "cache": 0.000215808
+      },
+      "usd": 0.005907707999999999
+    },
+    {
+      "family": "code",
+      "variant": 8,
+      "arm": "pi",
+      "requests": 11,
+      "tools": {
+        "bash": 7,
+        "task_status": 1,
+        "write": 2,
+        "edit": 1,
+        "task_verify": 1,
+        "task_submit": 1
+      },
+      "costs": {
+        "input": 0.0027495,
+        "output": 0.0051024,
+        "cache": 0.000500736
+      },
+      "usd": 0.008352636
+    },
+    {
+      "family": "code",
+      "variant": 8,
+      "arm": "off",
+      "requests": 9,
+      "tools": {
+        "bash": 4,
+        "task_verify": 2,
+        "task_submit": 2,
+        "task_status": 1
+      },
+      "costs": {
+        "input": 0.0026403,
+        "output": 0.003804,
+        "cache": 0.000333312
+      },
+      "usd": 0.006777612
+    },
+    {
+      "family": "code",
+      "variant": 8,
+      "arm": "on",
+      "requests": 21,
+      "tools": {
+        "task_status": 2,
+        "bash": 13,
+        "write": 3,
+        "task_verify": 2,
+        "task_submit": 2
+      },
+      "costs": {
+        "input": 0.0045573,
+        "output": 0.0083748,
+        "cache": 0.0014000640000000001
+      },
+      "usd": 0.014332163999999998
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "name": "kada",
+  "version": "0.8.0",
+  "private": true,
+  "type": "module",
+  "description": "Kada: a local AI task companion built on Pi.",
+  "engines": {
+    "node": ">=24.7.0"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.ts serve",
+    "chat": "tsx src/cli.ts chat",
+    "pet": "tsx src/pet.ts",
+    "harness": "tsx src/cli.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/cli.js serve",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsx --test test/*.test.ts",
+    "test:pet": "tsx scripts/test-pet.ts",
+    "test:learning": "tsx scripts/learning/run.ts",
+    "test:live": "tsx scripts/live-smoke.ts",
+    "test:live:web": "tsx scripts/live-web-smoke.ts",
+    "test:live:intake": "tsx scripts/live-intake-smoke.ts",
+    "test:compare": "tsx scripts/compare.ts",
+    "test:compare:long": "tsx scripts/long-task/run.ts",
+    "test:compare:heldout": "tsx scripts/heldout/study.ts",
+    "test:compare:feedback": "tsx scripts/feedback/study.ts",
+    "showcase": "tsx scripts/showcase/run.ts",
+    "demo": "tsx src/cli.ts demo",
+    "test:skills": "tsx scripts/learning/run.ts --native-skills",
+    "discover": "tsx src/cli.ts discover",
+    "check": "npm run typecheck && npm test && npm run build && npm run check:commit",
+    "check:commit": "tsx scripts/check-commit.ts",
+    "test:live:discovery": "tsx scripts/live-discovery-smoke.ts",
+    "test:cases": "python3 scripts/cases/preflight.py",
+    "test:compare:cases": "tsx scripts/cases/run.ts"
+  },
+  "dependencies": {
+    "@earendil-works/chord": "1.4.0",
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-coding-agent": "1.4.0",
+    "@earendil-works/pi-durable": "1.4.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "jsonc-parser": "3.3.1",
+    "proper-lockfile": "4.1.2",
+    "smol-toml": "1.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "@types/proper-lockfile": "4.1.4",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  },
+  "overrides": {
+    "minimatch": "11.0.1",
+    "undici": "8.12.2"
+  },
+  "license": "MIT",
+  "author": "muzizhi7",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muzizhi7/kada.git"
+  },
+  "homepage": "https://github.com/muzizhi7/kada#readme",
+  "bugs": {
+    "url": "https://github.com/muzizhi7/kada/issues"
+  },
+  "keywords": [
+    "pi",
+    "ai-agent",
+    "local-first",
+    "desktop-companion",
+    "task-automation"
+  ]
+}

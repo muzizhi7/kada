@@ -1,0 +1,263 @@
+{
+  "version": "0.5.2",
+  "model": {
+    "provider": "deepseek",
+    "modelId": "deepseek-flash"
+  },
+  "piVersion": "1.4.0",
+  "purpose": "Known development demonstration, not held-out evidence or a general quality improvement claim",
+  "sharedExecution": {
+    "toolCount": 11,
+    "toolSchemaSha256": "b7909ca2e184384c07460931fd2609a4c9540d20ffc117dac80002a00db19d12",
+    "sameModelAndTools": true,
+    "perArmCostCapUsd": 0.223057402,
+    "matchedExecutionCostCapUsd": 0.21439153,
+    "maxDurationMs": 900000
+  },
+  "correctedPair": {
+    "preparationCostUsd": 0.008665872,
+    "referenceExecutionCostUsd": 0.032096628,
+    "candidateAutoExecutionCostUsd": 0.027757620000000004,
+    "candidateAutoTotalCostUsd": 0.036423492,
+    "candidateReviewedTotalCostUsd": 0.041340552,
+    "referenceElapsedMs": 85240,
+    "candidateAutoElapsedMs": 69758,
+    "confirmationCount": 1,
+    "developerFeedbackMessages": 1,
+    "userBusinessFollowupMessages": 0,
+    "hostAutomaticReworks": 0,
+    "workerCount": 0,
+    "originalBudgetAndDeadlinePreserved": true
+  },
+  "rows": [
+    {
+      "stage": "initial-preparation",
+      "status": "stopped-before-confirmation",
+      "costUsd": 0.008929847999999999,
+      "machinePass": null,
+      "developerFeedbackMessages": 0
+    },
+    {
+      "stage": "initial-reference",
+      "status": "done",
+      "costUsd": 0.044955348,
+      "machinePass": true,
+      "developerFeedbackMessages": 0
+    },
+    {
+      "stage": "reference",
+      "status": "done",
+      "costUsd": 0.032096628,
+      "machinePass": true,
+      "developerFeedbackMessages": 0
+    },
+    {
+      "stage": "candidate-auto",
+      "status": "completed",
+      "costUsd": 0.036423492,
+      "machinePass": true,
+      "developerFeedbackMessages": 0
+    },
+    {
+      "stage": "candidate-document-correction-increment",
+      "status": "completed",
+      "costUsd": 0.004917060000000001,
+      "machinePass": true,
+      "developerFeedbackMessages": 1
+    }
+  ],
+  "allRecordedEstimatedCostUsd": 0.12732237600000001,
+  "totalProtectionUsd": 0.5,
+  "closedLedgers": [
+    {
+      "label": "initial-reference",
+      "budget": {
+        "totalTokens": 1017386,
+        "cachedTokens": 945408,
+        "cacheWriteTokens": 0,
+        "inputTokens": 52323,
+        "outputTokens": 19655,
+        "estimatedCostUsd": 0.044955348
+      },
+      "compactions": 1,
+      "workerCount": 0,
+      "toolSchemaSha256": null,
+      "finalContextToolCount": 0,
+      "toolSnapshotNote": "Final compacted context did not retain a reconstructable tool snapshot; this is not zero executed tools. Corrected matched arms both show the same 11 tools."
+    },
+    {
+      "label": "reference",
+      "budget": {
+        "totalTokens": 920159,
+        "cachedTokens": 873088,
+        "cacheWriteTokens": 0,
+        "inputTokens": 32919,
+        "outputTokens": 14152,
+        "estimatedCostUsd": 0.032096628
+      },
+      "compactions": 0,
+      "workerCount": 0,
+      "toolSchemaSha256": "b7909ca2e184384c07460931fd2609a4c9540d20ffc117dac80002a00db19d12",
+      "finalContextToolCount": 11
+    },
+    {
+      "label": "candidate",
+      "budget": {
+        "totalTokens": 798287,
+        "cachedTokens": 724992,
+        "cacheWriteTokens": 0,
+        "inputTokens": 56626,
+        "outputTokens": 16669,
+        "estimatedCostUsd": 0.041340552
+      },
+      "compactions": 0,
+      "workerCount": 0,
+      "toolSchemaSha256": "b7909ca2e184384c07460931fd2609a4c9540d20ffc117dac80002a00db19d12",
+      "finalContextToolCount": 11
+    }
+  ],
+  "artifacts": [
+    {
+      "arm": "candidate",
+      "bytes": 1761226,
+      "sha256": "943066311a546ac9b0426ef296556eaeac0494886269115e979d546e2c972925",
+      "fileMembers": 188,
+      "directoryMembers": 29
+    },
+    {
+      "arm": "pi-reference",
+      "bytes": 1760731,
+      "sha256": "89a5c6b8d7f5a01db4e1fe993be2ad6fc63f283d1f847463206522fe574dab10",
+      "fileMembers": 188,
+      "directoryMembers": 28
+    }
+  ],
+  "independentVerification": {
+    "method": "Source-audited programs, temporary copies, frozen task checker plus default CLI and nested-overlap probes. Raw auto delivery retained before one documented developer wording correction.",
+    "records": [
+      {
+        "label": "initial-reference",
+        "checks": [
+          "fixed checker, bytes, statistics, ZIP, repeat, changed/deleted inputs, own tests",
+          "default CLI fresh build equals delivered ZIP",
+          "both nesting directions refused; input unchanged"
+        ],
+        "actualCheck": {
+          "passed": true,
+          "actualBytesAndZip": true,
+          "freshRepeatChangedDeleted": true,
+          "ownTestsExecuted": 13,
+          "source_files": 185,
+          "text_files": 181,
+          "binary_files": 4,
+          "changed_files": 4,
+          "source_bytes": 1687185,
+          "target_bytes": 1687176,
+          "skipped_symlinks": []
+        },
+        "passed": true
+      },
+      {
+        "label": "reference",
+        "checks": [
+          "fixed checker, bytes, statistics, ZIP, repeat, changed/deleted inputs, own tests",
+          "default CLI fresh build equals delivered ZIP",
+          "both nesting directions refused; input unchanged"
+        ],
+        "actualCheck": {
+          "passed": true,
+          "actualBytesAndZip": true,
+          "freshRepeatChangedDeleted": true,
+          "ownTestsExecuted": 18,
+          "source_files": 185,
+          "text_files": 181,
+          "binary_files": 4,
+          "changed_files": 4,
+          "source_bytes": 1687185,
+          "target_bytes": 1687176,
+          "skipped_symlinks": []
+        },
+        "passed": true
+      },
+      {
+        "label": "candidate-auto",
+        "checks": [
+          "fixed checker, bytes, statistics, ZIP, repeat, changed/deleted inputs, own tests",
+          "default CLI fresh build equals delivered ZIP",
+          "both nesting directions refused; input unchanged"
+        ],
+        "actualCheck": {
+          "passed": true,
+          "actualBytesAndZip": true,
+          "freshRepeatChangedDeleted": true,
+          "ownTestsExecuted": 9,
+          "source_files": 185,
+          "text_files": 181,
+          "binary_files": 4,
+          "changed_files": 4,
+          "source_bytes": 1687185,
+          "target_bytes": 1687176,
+          "skipped_symlinks": []
+        },
+        "passed": true
+      },
+      {
+        "label": "candidate-reviewed",
+        "checks": [
+          "fixed checker, bytes, statistics, ZIP, repeat, changed/deleted inputs, own tests",
+          "default CLI fresh build equals delivered ZIP",
+          "both nesting directions refused; input unchanged"
+        ],
+        "actualCheck": {
+          "passed": true,
+          "actualBytesAndZip": true,
+          "freshRepeatChangedDeleted": true,
+          "ownTestsExecuted": 9,
+          "source_files": 185,
+          "text_files": 181,
+          "binary_files": 4,
+          "changed_files": 4,
+          "source_bytes": 1687185,
+          "target_bytes": 1687176,
+          "skipped_symlinks": []
+        },
+        "passed": true
+      }
+    ],
+    "originalsUnchanged": true,
+    "developerCorrectionChangedOnly": [
+      "README.md"
+    ]
+  },
+  "semanticReview": {
+    "initialReferenceNotes": [
+      "Automatic byte/ZIP/tests passed; its README/summary mislabeled the real text edge file .hidden as binary by mixing in a synthetic test fixture, and misstated an old ZIP naming defect. Retained as diagnostics, not a successful paired delivery."
+    ],
+    "candidateAutoNotes": [
+      "All fixed and extra mechanical probes passed. README incorrectly attributed a follow-on path/hash list to command stdout; developer review requested one correction. This is not zero-intervention full-quality completion."
+    ],
+    "candidateFinalNotes": [
+      "Only README.md changed. All fixed/extra checks pass again. Declared source semantics, upstream verification and cross-platform execution remain unverified."
+    ],
+    "referenceNotes": [
+      "Byte/ZIP/tests and default CLI/nested-overlap probes pass. No matched causal quality/cost gain can be claimed from this known demonstration."
+    ]
+  },
+  "serviceUpgrade": {
+    "version": "0.5.2",
+    "healthy": true,
+    "preservedUserTasks": 7,
+    "configurationCredentialsAndMetadataUnchanged": true,
+    "budgetsAndDeadlinesUnchanged": true,
+    "computerEnabled": false,
+    "noActiveUserTaskInterrupted": true
+  },
+  "notes": [
+    "The initial attempt stopped on a genuine preparation-validation bug before candidate execution; its full spend and baseline are retained. The fix was validated before the corrected attempt.",
+    "One common preparation was charged once and included in candidate total; matched execution comparisons exclude that cost.",
+    "The reviewed candidate includes one developer wording correction, not a new user requirement. Initial automatic output is preserved separately.",
+    "Costs are Pi estimates including failed attempts and actual compaction, not provider bills. Codex development/review and local CPU excluded.",
+    "No web, real computer-use, productive hour, broad coding-language coverage, or external-user validation claimed.",
+    "A missing tool snapshot in the first reference after compaction is reported as unavailable, not zero tools executed; corrected-pair schemas are equal."
+  ]
+}

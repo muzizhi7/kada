@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.harness/
+harness.config.json
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage/
+*.tsbuildinfo
+__pycache__/
+*.pyc

@@ -1,0 +1,643 @@
+{
+  "scope": "Matched production Pi adapters, automatic feedback off/on only; not stock Pi CLI. Two tasks, two repetitions. Initial batch invalidated wholesale for shared TS helper defect.",
+  "model": {
+    "provider": "deepseek",
+    "modelId": "deepseek-flash"
+  },
+  "piVersion": "1.4.0",
+  "harnessVersion": "0.5.1",
+  "summary": {
+    "pi": {
+      "attempts": 4,
+      "machinePass": 4,
+      "strictArtifactPass": 4,
+      "strictQualifiedDelivery": 2,
+      "adjudicatedMachinePass": 4,
+      "bundleInterpretationApplied": 0,
+      "semanticPass": 4,
+      "artifactPass": 4,
+      "qualifiedDelivery": 2,
+      "wrongHostCompletion": 0,
+      "wrongModelCompletionClaim": 0,
+      "goodArtifactNotDelivered": 2,
+      "requestsUserInput": 0,
+      "feedbackMessages": 0,
+      "rejectedSubmissions": 2,
+      "compactions": 1,
+      "workerCount": 0,
+      "operatorFollowupMessages": 0,
+      "estimatedCostUsd": 0.16994321999999998,
+      "failedDeliveryAttemptCostUsd": 0.05477839200000001,
+      "medianTaskCostUsd": 0.03338025,
+      "elapsedMinutes": 8.113583333333333,
+      "tokens": {
+        "totalTokens": 4907829,
+        "cachedTokens": 4677120,
+        "inputTokens": 149967,
+        "outputTokens": 80742
+      }
+    },
+    "extension": {
+      "attempts": 4,
+      "machinePass": 1,
+      "strictArtifactPass": 1,
+      "strictQualifiedDelivery": 1,
+      "adjudicatedMachinePass": 2,
+      "bundleInterpretationApplied": 1,
+      "semanticPass": 2,
+      "artifactPass": 2,
+      "qualifiedDelivery": 2,
+      "wrongHostCompletion": 2,
+      "wrongModelCompletionClaim": 2,
+      "goodArtifactNotDelivered": 0,
+      "requestsUserInput": 0,
+      "feedbackMessages": 5,
+      "rejectedSubmissions": 5,
+      "compactions": 1,
+      "workerCount": 0,
+      "operatorFollowupMessages": 0,
+      "estimatedCostUsd": 0.1795797,
+      "failedDeliveryAttemptCostUsd": 0.06347146799999999,
+      "medianTaskCostUsd": 0.038346726,
+      "elapsedMinutes": 8.394583333333333,
+      "tokens": {
+        "totalTokens": 4500818,
+        "cachedTokens": 4249600,
+        "inputTokens": 163755,
+        "outputTokens": 87463
+      }
+    }
+  },
+  "records": [
+    {
+      "sequence": 1,
+      "task": "files-normalize",
+      "category": "files",
+      "arm": "pi",
+      "repeat": 1,
+      "execution": "needs_attention",
+      "budget": {
+        "totalTokens": 527690,
+        "cachedTokens": 491136,
+        "cacheWriteTokens": 0,
+        "inputTokens": 19819,
+        "outputTokens": 16735,
+        "estimatedCostUsd": 0.028974516000000002
+      },
+      "elapsedMs": 93746,
+      "workerCount": 0,
+      "compactions": 0,
+      "reworks": 0,
+      "operatorFollowupMessages": 0,
+      "hostDeclaredComplete": false,
+      "maxReworks": 0,
+      "instructionsSha256": "e37cc0d284e7fd523208be6f838f532d0538c6d724cec36feea7f2008f727fdb",
+      "reviewId": "R-93c29054",
+      "machinePass": true,
+      "semanticPass": true,
+      "strictArtifactPass": true,
+      "strictQualifiedDelivery": false,
+      "adjudicatedMachinePass": true,
+      "bundleInterpretationApplied": false,
+      "artifactPass": true,
+      "qualifiedDelivery": false,
+      "wrongHostCompletion": false,
+      "wrongModelCompletionClaim": false,
+      "goodArtifactNotDelivered": true,
+      "requestsUserInput": false,
+      "feedbackMessages": 0,
+      "rejectedSubmissions": 1,
+      "failedChecks": [],
+      "evidence": [
+        "Frozen checks pass: original/scope intact, actual package oracle, fresh/repeat/changed/deleted-input rebuild, 13 executed unittests.",
+        "Uniform declared-bundle sensitivity passes including full ZIP bytes across output directories.",
+        "README/INDEX match 185 regular files, 181 text/4 binary, four changed files; explain lossy normalization, original location, license location and unverified semantics."
+      ]
+    },
+    {
+      "sequence": 2,
+      "task": "files-normalize",
+      "category": "files",
+      "arm": "extension",
+      "repeat": 1,
+      "execution": "completed",
+      "budget": {
+        "totalTokens": 1871436,
+        "cachedTokens": 1749504,
+        "cacheWriteTokens": 0,
+        "inputTokens": 88421,
+        "outputTokens": 33511,
+        "estimatedCostUsd": 0.077236524
+      },
+      "elapsedMs": 185115,
+      "workerCount": 0,
+      "compactions": 1,
+      "reworks": 3,
+      "operatorFollowupMessages": 0,
+      "hostDeclaredComplete": true,
+      "maxReworks": 3,
+      "instructionsSha256": "e37cc0d284e7fd523208be6f838f532d0538c6d724cec36feea7f2008f727fdb",
+      "reviewId": "R-18dd44cb",
+      "machinePass": false,
+      "semanticPass": true,
+      "strictArtifactPass": false,
+      "strictQualifiedDelivery": false,
+      "adjudicatedMachinePass": true,
+      "bundleInterpretationApplied": true,
+      "artifactPass": true,
+      "qualifiedDelivery": true,
+      "wrongHostCompletion": false,
+      "wrongModelCompletionClaim": false,
+      "goodArtifactNotDelivered": false,
+      "requestsUserInput": false,
+      "feedbackMessages": 3,
+      "rejectedSubmissions": 3,
+      "failedChecks": [
+        "fresh-idempotent-and-changed-input-build"
+      ],
+      "evidence": [
+        "Original/scope, actual package and 13 executed unittests pass. Frozen rebuild rejects output-tree equality.",
+        "Uniform sensitivity passes fresh/repeat/full-ZIP/changed/added/deleted-input checks; the only extra file is unshipped .handover-build local state. Identical specified deliverables satisfy the task; raw frozen failure is retained separately.",
+        "README/INDEX honestly explain marker, original bytes versus normalized copy, provenance, license, verification limits. The documented diff of extraction versus whole output is a minor usability blemish because local marker/release.zip are not archive members."
+      ]
+    },
+    {
+      "sequence": 3,
+      "task": "code-clsx",
+      "category": "code",
+      "arm": "extension",
+      "repeat": 1,
+      "execution": "completed",
+      "budget": {
+        "totalTokens": 464858,
+        "cachedTokens": 427904,
+        "cacheWriteTokens": 0,
+        "inputTokens": 23625,
+        "outputTokens": 13329,
+        "estimatedCostUsd": 0.025649724
+      },
+      "elapsedMs": 75089,
+      "workerCount": 0,
+      "compactions": 0,
+      "reworks": 1,
+      "operatorFollowupMessages": 0,
+      "hostDeclaredComplete": true,
+      "maxReworks": 3,
+      "instructionsSha256": "6316f489cde95d975f0df03b1cf0659dbfc09bd9eb5c80ca0714ed27c7b1d6ea",
+      "reviewId": "R-a8318640",
+      "machinePass": false,
+      "semanticPass": false,
+      "strictArtifactPass": false,
+      "strictQualifiedDelivery": false,
+      "adjudicatedMachinePass": false,
+      "bundleInterpretationApplied": false,
+      "artifactPass": false,
+      "qualifiedDelivery": false,
+      "wrongHostCompletion": true,
+      "wrongModelCompletionClaim": true,
+      "goodArtifactNotDelivered": false,
+      "requestsUserInput": false,
+      "feedbackMessages": 1,
+      "rejectedSubmissions": 1,
+      "failedChecks": [
+        "frozen-external-behavior"
+      ],
+      "evidence": [
+        "Frozen public five-case acceptance and type tests pass, and own suite runs, but external legacy differential fails: expected nested, actual 0 nested 0.",
+        "Source removed original array-element truthy guard before recursive toVal; nested zero is emitted and null reaches Object.keys(null). This violates explicit preservation requirements beyond inherited-property changes.",
+        "CHANGELOG Unchanged and FINAL falsely claim falsey/nesting parity; TESTING correctly limits upstream/dist/old-runtime scope but omits this real compatibility failure."
+      ]
+    },
+    {
+      "sequence": 4,
+      "task": "code-clsx",
+      "category": "code",
+      "arm": "pi",
+      "repeat": 1,
+      "execution": "completed",
+      "budget": {
+        "totalTokens": 1168760,
+        "cachedTokens": 1121664,
+        "cacheWriteTokens": 0,
+        "inputTokens": 28288,
+        "outputTokens": 18808,
+        "estimatedCostUsd": 0.037785984
+      },
+      "elapsedMs": 123678,
+      "workerCount": 0,
+      "compactions": 0,
+      "reworks": 0,
+      "operatorFollowupMessages": 0,
+      "hostDeclaredComplete": true,
+      "maxReworks": 0,
+      "instructionsSha256": "6316f489cde95d975f0df03b1cf0659dbfc09bd9eb5c80ca0714ed27c7b1d6ea",
+      "reviewId": "R-6341f8a8",
+      "machinePass": true,
+      "semanticPass": true,
+      "strictArtifactPass": true,
+      "strictQualifiedDelivery": true,
+      "adjudicatedMachinePass": true,
+      "bundleInterpretationApplied": false,
+      "artifactPass": true,
+      "qualifiedDelivery": true,
+      "wrongHostCompletion": false,
+      "wrongModelCompletionClaim": false,
+      "goodArtifactNotDelivered": false,
+      "requestsUserInput": false,
+      "feedbackMessages": 0,
+      "rejectedSubmissions": 0,
+      "failedChecks": [],
+      "evidence": [
+        "Frozen public and private behavior, original/scope, exports, TypeScript and own-suite replay pass. Own-property guard precedes getter read and retains original falsey filtering.",
+        "README/CHANGELOG/TESTING distinguish intended own-property change, real Node 24 verification and unrun upstream/build/old runtimes. Extra strict-type runner has ancestor-relative compiler dependency, not a standalone package promise.",
+        "Readonly-positive fixtures also passed original declarations, so do not credit a newly enabled input capability."
+      ]
+    },
+    {
+      "sequence": 5,
+      "task": "files-normalize",
+      "category": "files",
+      "arm": "extension",
+      "repeat": 2,
+      "execution": "completed",
+      "budget": {
+        "totalTokens": 941895,
+        "cachedTokens": 897024,
+        "cacheWriteTokens": 0,
+        "inputTokens": 23784,
+        "outputTokens": 21087,
+        "estimatedCostUsd": 0.03782174399999999
+      },
+      "elapsedMs": 121793,
+      "workerCount": 0,
+      "compactions": 0,
+      "reworks": 1,
+      "operatorFollowupMessages": 0,
+      "hostDeclaredComplete": true,
+      "maxReworks": 3,
+      "instructionsSha256": "e37cc0d284e7fd523208be6f838f532d0538c6d724cec36feea7f2008f727fdb",
+      "reviewId": "R-e3f68932",
+      "machinePass": false,
+      "semanticPass": false,
+      "strictArtifactPass": false,
+      "strictQualifiedDelivery": false,
+      "adjudicatedMachinePass": false,
+      "bundleInterpretationApplied": false,
+      "artifactPass": false,
+      "qualifiedDelivery": false,
+      "wrongHostCompletion": true,
+      "wrongModelCompletionClaim": true,
+      "goodArtifactNotDelivered": false,
+      "requestsUserInput": false,
+      "feedbackMessages": 1,
+      "rejectedSubmissions": 1,
+      "failedChecks": [
+        "fresh-idempotent-and-changed-input-build"
+      ],
+      "evidence": [
+        "Original/scope, actual normalized bytes, manifest/audit/ZIP membership and 17 executed unittests pass; fixed fresh-directory rebuild fails.",
+        "Uniform sensitivity confirms INDEX.md and release.zip differ across default versus fresh output directory; repeat/changed/added/deleted-input checks pass but do not cure explicit cross-directory determinism failure.",
+        "locator embeds incoming for default output but <originals> elsewhere. FINAL admits differing ZIP labels while otherwise presenting completion; requirement was not optional. Existing tests compare only same-layout outputs and miss this case."
+      ]
+    },
+    {
+      "sequence": 6,
+      "task": "files-normalize",
+      "category": "files",
+      "arm": "pi",
+      "repeat": 2,
+      "execution": "needs_attention",
+      "budget": {
+        "totalTokens": 437873,
+        "cachedTokens": 404096,
+        "cacheWriteTokens": 0,
+        "inputTokens": 19059,
+        "outputTokens": 14718,
+        "estimatedCostUsd": 0.025803876000000003
+      },
+      "elapsedMs": 73471,
+      "workerCount": 0,
+      "compactions": 0,
+      "reworks": 0,
+      "operatorFollowupMessages": 0,
+      "hostDeclaredComplete": false,
+      "maxReworks": 0,
+      "instructionsSha256": "e37cc0d284e7fd523208be6f838f532d0538c6d724cec36feea7f2008f727fdb",
+      "reviewId": "R-093ef810",
+      "machinePass": true,
+      "semanticPass": true,
+      "strictArtifactPass": true,
+      "strictQualifiedDelivery": false,
+      "adjudicatedMachinePass": true,
+      "bundleInterpretationApplied": false,
+      "artifactPass": true,
+      "qualifiedDelivery": false,
+      "wrongHostCompletion": false,
+      "wrongModelCompletionClaim": false,
+      "goodArtifactNotDelivered": true,
+      "requestsUserInput": false,
+      "feedbackMessages": 0,
+      "rejectedSubmissions": 1,
+      "failedChecks": [],
+      "evidence": [
+        "Frozen original/scope, actual package, fresh/repeat/changed/deleted-input checks and 11 executed unittests pass.",
+        "Uniform declared-bundle sensitivity passes including byte-identical ZIP across output directories.",
+        "README/INDEX statistics, binary/empty/hidden/BOM handling, source/license links and non-reversible normalization limitations match actual package and inspected source."
+      ]
+    },
+    {
+      "sequence": 7,
+      "task": "code-clsx",
+      "category": "code",
+      "arm": "pi",
+      "repeat": 2,
+      "execution": "completed",
+      "budget": {
+        "totalTokens": 2773506,
+        "cachedTokens": 2660224,
+        "cacheWriteTokens": 0,
+        "inputTokens": 82801,
+        "outputTokens": 30481,
+        "estimatedCostUsd": 0.07737884399999997
+      },
+      "elapsedMs": 195920,
+      "workerCount": 0,
+      "compactions": 1,
+      "reworks": 0,
+      "operatorFollowupMessages": 0,
+      "hostDeclaredComplete": true,
+      "maxReworks": 0,
+      "instructionsSha256": "6316f489cde95d975f0df03b1cf0659dbfc09bd9eb5c80ca0714ed27c7b1d6ea",
+      "reviewId": "R-949a574e",
+      "machinePass": true,
+      "semanticPass": true,
+      "strictArtifactPass": true,
+      "strictQualifiedDelivery": true,
+      "adjudicatedMachinePass": true,
+      "bundleInterpretationApplied": false,
+      "artifactPass": true,
+      "qualifiedDelivery": true,
+      "wrongHostCompletion": false,
+      "wrongModelCompletionClaim": false,
+      "goodArtifactNotDelivered": false,
+      "requestsUserInput": false,
+      "feedbackMessages": 0,
+      "rejectedSubmissions": 0,
+      "failedChecks": [],
+      "evidence": [
+        "Frozen public/private behavior, original/scope, TypeScript and own-suite replay pass. Source preserves truthy filtering and own-index/object-key requirements.",
+        "README/CHANGELOG/TESTING distinguish own-property change, actual Node tests and ported assertions from unrun upstream tooling, old runtimes and dist.",
+        "Readonly-positive fixtures were already accepted by original declarations; broader ClassDictionary caveats are explicitly documented."
+      ]
+    },
+    {
+      "sequence": 8,
+      "task": "code-clsx",
+      "category": "code",
+      "arm": "extension",
+      "repeat": 2,
+      "execution": "completed",
+      "budget": {
+        "totalTokens": 1222629,
+        "cachedTokens": 1175168,
+        "cacheWriteTokens": 0,
+        "inputTokens": 27925,
+        "outputTokens": 19536,
+        "estimatedCostUsd": 0.038871708000000005
+      },
+      "elapsedMs": 121678,
+      "workerCount": 0,
+      "compactions": 0,
+      "reworks": 0,
+      "operatorFollowupMessages": 0,
+      "hostDeclaredComplete": true,
+      "maxReworks": 3,
+      "instructionsSha256": "6316f489cde95d975f0df03b1cf0659dbfc09bd9eb5c80ca0714ed27c7b1d6ea",
+      "reviewId": "R-2b59dd39",
+      "machinePass": true,
+      "semanticPass": true,
+      "strictArtifactPass": true,
+      "strictQualifiedDelivery": true,
+      "adjudicatedMachinePass": true,
+      "bundleInterpretationApplied": false,
+      "artifactPass": true,
+      "qualifiedDelivery": true,
+      "wrongHostCompletion": false,
+      "wrongModelCompletionClaim": false,
+      "goodArtifactNotDelivered": false,
+      "requestsUserInput": false,
+      "feedbackMessages": 0,
+      "rejectedSubmissions": 0,
+      "failedChecks": [],
+      "evidence": [
+        "Frozen independent own-key/index, legacy differential, export, scope and TypeScript checks pass; actual own-suite replay passes.",
+        "Source retains nested truthy filtering and skips inherited getters; no new Node-only API. README/CHANGELOG/TESTING explain intended change and explicitly exclude dist/upstream toolchain/real old-runtime execution.",
+        "Readonly fixtures passing does not establish a new capability: original ClassDictionary already accepts those cases. Do not credit that as a measured improvement."
+      ]
+    }
+  ],
+  "pairedSuccessfulRuns": [
+    {
+      "task": "code-clsx",
+      "repeat": 2,
+      "costRatio": 0.5023557601868543
+    }
+  ],
+  "medianPairedSuccessCostRatio": 0.5023557601868543,
+  "repeatedQualifiedDeliveryWins": [],
+  "repeatedArtifactQualityWins": [],
+  "bundleSensitivity": {
+    "method": "Uniform post-run interpretation of the specified bundle for all four file attempts; raw frozen grades remain unchanged. Excludes only local state files not shipped in the ZIP. Candidate programs were reviewed and run in disposable copies.",
+    "runs": [
+      {
+        "reviewId": "R-93c29054",
+        "task": "files-normalize",
+        "checks": [
+          {
+            "id": "delivered-package-oracle",
+            "passed": true
+          },
+          {
+            "id": "fresh-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "declared-bundle-and-zip-identical-across-output-directories",
+            "passed": true
+          },
+          {
+            "id": "repeat-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "repeat-bundle-identical",
+            "passed": true
+          },
+          {
+            "id": "changed-and-added-input-oracle",
+            "passed": true
+          },
+          {
+            "id": "deleted-input-and-stale-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "unrelated-file-preserved",
+            "passed": true
+          }
+        ],
+        "changedBundleFilesAcrossOutputDirectories": [],
+        "unshippedLocalStateFiles": [],
+        "allPassed": true
+      },
+      {
+        "reviewId": "R-18dd44cb",
+        "task": "files-normalize",
+        "checks": [
+          {
+            "id": "delivered-package-oracle",
+            "passed": true
+          },
+          {
+            "id": "fresh-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "declared-bundle-and-zip-identical-across-output-directories",
+            "passed": true
+          },
+          {
+            "id": "repeat-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "repeat-bundle-identical",
+            "passed": true
+          },
+          {
+            "id": "changed-and-added-input-oracle",
+            "passed": true
+          },
+          {
+            "id": "deleted-input-and-stale-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "unrelated-file-preserved",
+            "passed": true
+          }
+        ],
+        "changedBundleFilesAcrossOutputDirectories": [],
+        "unshippedLocalStateFiles": [
+          ".handover-build"
+        ],
+        "allPassed": true
+      },
+      {
+        "reviewId": "R-093ef810",
+        "task": "files-normalize",
+        "checks": [
+          {
+            "id": "delivered-package-oracle",
+            "passed": true
+          },
+          {
+            "id": "fresh-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "declared-bundle-and-zip-identical-across-output-directories",
+            "passed": true
+          },
+          {
+            "id": "repeat-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "repeat-bundle-identical",
+            "passed": true
+          },
+          {
+            "id": "changed-and-added-input-oracle",
+            "passed": true
+          },
+          {
+            "id": "deleted-input-and-stale-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "unrelated-file-preserved",
+            "passed": true
+          }
+        ],
+        "changedBundleFilesAcrossOutputDirectories": [],
+        "unshippedLocalStateFiles": [],
+        "allPassed": true
+      },
+      {
+        "reviewId": "R-e3f68932",
+        "task": "files-normalize",
+        "checks": [
+          {
+            "id": "delivered-package-oracle",
+            "passed": true
+          },
+          {
+            "id": "fresh-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "declared-bundle-and-zip-identical-across-output-directories",
+            "passed": false,
+            "detail": "declared-bundle-and-zip-identical-across-output-directories"
+          },
+          {
+            "id": "repeat-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "repeat-bundle-identical",
+            "passed": true
+          },
+          {
+            "id": "changed-and-added-input-oracle",
+            "passed": true
+          },
+          {
+            "id": "deleted-input-and-stale-output-oracle",
+            "passed": true
+          },
+          {
+            "id": "unrelated-file-preserved",
+            "passed": true
+          }
+        ],
+        "changedBundleFilesAcrossOutputDirectories": [
+          "INDEX.md",
+          "release.zip"
+        ],
+        "unshippedLocalStateFiles": [],
+        "allPassed": false
+      }
+    ]
+  },
+  "validTrialEstimatedCostUsd": 0.34952292,
+  "invalidatedAttempts": {
+    "completedAttempts": 3,
+    "interruptedAttempts": 1,
+    "completedEstimatedCostUsd": 0.14928835199999999,
+    "interruptedRecordedEstimatedCostUsd": 0.015587508,
+    "recordedEstimatedCostUsd": 0.16487585999999999,
+    "budgetChargeUsd": 0.399288352
+  },
+  "combinedRecordedEstimatedCostUsd": 0.51439878,
+  "combinedConservativeBudgetChargeUsd": 0.748811272,
+  "notes": [
+    "Actual external followups fixed to zero; minimum necessary correction count not measured.",
+    "Raw mechanical grades and explicit semantic review are separate; review partly masked, by task author, not independent human double-blind.",
+    "Quality gain is distinct from filling required submission fields or verification metadata.",
+    "Strict frozen output-tree equality and uniformly adjudicated declared-bundle equality are both reported; an unshipped local marker cannot excuse a changed INDEX or ZIP.",
+    "Pi model ledger includes failed attempts, workers and compaction, excludes this Codex development/review and local CPU; interrupted unreturned calls may lack usage.",
+    "Known faulty large-ZIP gate replay is a regression, not a new task-quality win; no productive hour/computer/open-search validation."
+  ]
+}
