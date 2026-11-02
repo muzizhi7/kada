@@ -15,7 +15,7 @@
 
 ## 远端与下载
 
-GitHub Actions 配置 Linux/macOS 检查与 macOS 原生编译，第三方 Actions 的 v7 标签已核实存在。实际远端结果应查看相应提交的 Actions，不能从本机结果推断。
+GitHub Actions 配置 Linux/macOS 检查与 macOS 原生编译，第三方 Actions 的 v7 标签已核实存在。完整源码提交 de56af730dc7ebbfcc6167be9b92f1e6c0e72f76 的 Linux/macOS 作业已实际通过，包括安装、113 项回归、构建、审计和 macOS 原生编译。[远端记录](https://github.com/muzizhi7/kada/actions/runs/41424817657)。仓库初始化时仅含 CI 工作流的临时提交曾因缺少源码失败；该结果保留，不作为完整源码验证。后续提交的状态以相应 Actions 为准。
 
 发布附件从已提交 Git tree 生成，提供 ZIP、tar.gz 和 SHA256SUMS.txt；包内只含公开源文件。完整本机测试和干净安装日志保留在 Git 忽略目录，不上传任务会话。
 

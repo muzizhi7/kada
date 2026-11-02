@@ -1,5 +1,7 @@
 # Kada
 
+[![checks](https://github.com/muzizhi7/kada/actions/workflows/ci.yml/badge.svg)](https://github.com/muzizhi7/kada/actions/workflows/ci.yml)
+
 **你定目标，我来推进。** 基于 Pi 的本地 AI 任务伙伴。
 
 [English](README.en.md) · [快速试用](docs/TRYOUT.md) · [使用手册](docs/USAGE.md) · [发布记录](https://github.com/muzizhi7/kada/releases) · [MIT](LICENSE)

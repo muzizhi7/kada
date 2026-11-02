@@ -10,6 +10,7 @@
 - Repository: https://github.com/muzizhi7/kada
 - Release: https://github.com/muzizhi7/kada/releases/tag/v0.8.0-alpha.1
 - Visuals: docs/images/kada-states.png, docs/images/kada-desktop.png
+- Share cover: docs/brand/kada-social.png (1280×640); editable SVG and icon/wordmark in docs/brand/
 
 ## 中文短介绍
 

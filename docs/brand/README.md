@@ -2,7 +2,8 @@
 
 - kada-icon.svg: transparent C6 character icon.
 - kada-wordmark.svg: horizontal Kada wordmark.
-- kada-social.svg: 1280×640 launch/share cover.
+- kada-social.svg: editable 1280×640 launch/share cover.
+- kada-social.png: rendered 1280×640 PNG for upload/sharing.
 - ../images/kada-states.png: actual native idle/work/delivery render.
 - ../images/kada-desktop.png: native desktop flow screenshot with scripted test data.
 

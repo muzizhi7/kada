@@ -1,5 +1,7 @@
 # Kada
 
+[![checks](https://github.com/muzizhi7/kada/actions/workflows/ci.yml/badge.svg)](https://github.com/muzizhi7/kada/actions/workflows/ci.yml)
+
 **Set a goal. Keep the work moving.** A local AI task companion built on Pi.
 
 [中文](README.md) · [Releases](https://github.com/muzizhi7/kada/releases) · [MIT](LICENSE)
