@@ -2,13 +2,15 @@
 
 [![checks](https://github.com/muzizhi7/kada/actions/workflows/ci.yml/badge.svg)](https://github.com/muzizhi7/kada/actions/workflows/ci.yml)
 
-**你定目标，我来推进。** 基于 Pi 的本地 AI 任务伙伴。
+**你的工作有上下文，也有想达成的目标。Kada 从这里开始。**
+
+Kada 是基于 Pi 的目标驱动 Agent。它了解你已有的工作环境，帮你把目标变成清楚的交付，然后在本机持续推进。
 
 [English](README.en.md) · [快速试用](docs/TRYOUT.md) · [使用手册](docs/USAGE.md) · [发布记录](https://github.com/muzizhi7/kada/releases) · [MIT](LICENSE)
 
 ![Kada：待机、工作、交付](docs/images/kada-states.png)
 
-把资料整理、文件交接或代码修改的目标交给 Kada。它先与你确认交付、范围和预算，再在本机后台执行，最后交付文件、实际检查结果和仍未验证的部分。终端与可选的 macOS 原生桌面伙伴连接同一套本地服务。
+你可能已经有自己的工具、Skills 和工作习惯，也有一些需要多个步骤才能完成的事。Kada 会先发现本机已有的 Agent 配置和 Skills，再结合你给出的目标整理交付、范围和预算。确认后，它在后台使用本地工具推进，遇到检查失败会在预算内尝试修正，完成时把文件和实际检查结果交给你。
 
 > **首个公开源码预览版：v0.8.0-alpha.1。** 适合愿意配置模型密钥的开发者和早期试用者。当前没有独立安装包，桌面入口从源码编译。线上模型收费由你的供应商承担。
 

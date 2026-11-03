@@ -2,13 +2,15 @@
 
 [![checks](https://github.com/muzizhi7/kada/actions/workflows/ci.yml/badge.svg)](https://github.com/muzizhi7/kada/actions/workflows/ci.yml)
 
-**Set a goal. Keep the work moving.** A local AI task companion built on Pi.
+**Your work has context. Your goals deserve follow-through.**
+
+Kada is a goal-driven agent built on Pi. It takes your existing working environment into account, turns a goal into clear deliverables, and keeps working locally toward them.
 
 [中文](README.md) · [Releases](https://github.com/muzizhi7/kada/releases) · [MIT](LICENSE)
 
 ![Kada: idle, working, delivery](docs/images/kada-states.png)
 
-Kada clarifies deliverables, scope, checks and a budget, asks for confirmation, then runs the task on your machine and hands back files with the checks actually performed. Use the terminal or an optional native macOS companion.
+Kada discovers existing local agent configuration and Skills, then works with you to clarify the deliverables, scope, checks and budget for a goal. Once confirmed, it uses local tools in the background, attempts to fix concrete check failures within the budget, and returns files with the checks actually performed. Use the terminal or the optional native macOS companion.
 
 **First public source preview: v0.8.0-alpha.1.** Bring your own cloud-model credentials. There is no standalone installer yet. The desktop companion compiles from source.
 

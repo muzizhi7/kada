@@ -1,29 +1,40 @@
-# 发布素材 / Launch copy
+# Kada 发布素材
 
-以下为可复制的发布文案，不会自动发送到其他平台。
+这些文案可用于仓库介绍、社区分享和邀请试用。当前公开版本为 v0.8.0-alpha.1；更深入的用户工作记忆还在工作区验证中。
 
-## Repository
+## GitHub 仓库简介
 
-- Name: kada
-- Description: A local AI task companion built on Pi. Confirm a goal and budget, run locally, deliver files with checks. CLI + native macOS companion.
-- Topics: pi, ai-agent, local-first, desktop-companion, task-automation, typescript, swift
-- Repository: https://github.com/muzizhi7/kada
-- Release: https://github.com/muzizhi7/kada/releases/tag/v0.8.0-alpha.1
-- Visuals: docs/images/kada-states.png, docs/images/kada-desktop.png
-- Share cover: docs/brand/kada-social.png (1280×640); editable SVG and icon/wordmark in docs/brand/
+A goal-driven local AI agent that works with your existing tools and Skills, follows through on tasks, and delivers results with checks.
 
-## 中文短介绍
+## 中文介绍
 
-我把 Kada 的第一版开源了：一个基于 Pi 的本地 AI 任务伙伴。先确认目标、交付和预算，再在后台执行，最后交回文件和实际检查结果。可以用终端，也可以让紫色像素伙伴待在 macOS 桌面上。
+有些工作不是问一个问题就结束了。你已经有自己的资料、工具和习惯，还希望有人记住目标，持续把事情往前推。
 
-现在是源码预览版，需要 Node 24.7+ 和自己的模型密钥；桌面入口另需 Swift。真实电脑操作和自动学习默认关闭，长任务稳定性和相对 Pi 的收益仍在验证。想找第一批愿意用真实工作副本试试资料交接或代码修复的朋友，最希望收到具体错误、纠正次数和再次使用意愿。
+Kada 是一个基于 Pi 的目标驱动 Agent。它会发现你电脑上已有的 Agent 配置和 Skills，结合任务材料理解工作环境；开始前和你确认要交付什么、可以使用哪些资料、预算是多少。确认之后，Kada 在本机后台使用工具推进，完成时交回文件，并说明做过哪些检查、还有什么没有核实。
+
+比如，你可以让它整理一批资料，做成能交接的目录和清单；也可以让它阅读现有代码和测试，按约定范围修复问题。你通过终端或 macOS 桌面伙伴与它交谈。
+
+目前公开的是源码预览版，需要 Node.js 24.7+ 和自己的模型密钥。实际结果仍需按任务检查；小时级可靠性，以及相对原生 Pi 的质量和成本收益，还在验证中。
 
 https://github.com/muzizhi7/kada
 
-## English short introduction
+## 正在开发：更了解用户
 
-Kada is now open source: a local AI task companion built on Pi. Confirm a goal, deliverables and a budget, let it work in the background, and receive files with the checks actually performed. Use a terminal or a native macOS pixel companion.
+目前公开版可以发现本地 Agent 配置、Skills 和部分环境偏好。工作区正在验证更深入的用户工作记忆：读取已有的用户指导与 Agent 记忆，按来源整理工作偏好和项目线索，让新任务可以参考。它还未包含在当前公开版本中；我们会在完成验证和发布后再将其作为已发布能力介绍。
 
-This is an early source preview requiring Node 24.7+ and your own model credentials; the macOS client also needs Swift tools. Real computer-use and automatic learning are off by default. Hour-scale reliability and repeatable gains over Pi remain unproven. Looking for early feedback on real work copies, concrete failures and whether the result is useful enough for a second task.
+## English introduction
+
+Your work already has context: files, tools, Skills and preferences you have built up over time. Some goals also take more than one response to finish.
+
+Kada is a goal-driven agent built on Pi. It discovers existing local agent configuration and Skills, then works with you to define the deliverables, scope and budget. Once you confirm, Kada uses local tools in the background, follows the task through its checks, and returns files alongside what it actually verified.
+
+The public release is an early source preview. It requires Node.js 24.7+ and your own model credentials. Hour-scale reliability and repeatable quality or cost gains over Pi are still being evaluated. A more detailed, source-bound user work memory is being tested in the working tree and is not part of the current release.
 
 https://github.com/muzizhi7/kada
+
+## 分享素材
+
+- 桌面截图：`docs/images/kada-desktop.png`
+- 三种状态：`docs/images/kada-states.png`
+- 分享封面：`docs/brand/kada-social.png`
+- 角色图标和可编辑封面：`docs/brand/`
