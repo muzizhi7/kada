@@ -18,12 +18,15 @@ export async function ensureDaemon(config: Config, configFile?: string): Promise
   }
   try {
     const response = await fetch(`http://127.0.0.1:${config.port}/health`, { signal: AbortSignal.timeout(1000) });
-    const health = await response.json() as { status?: string; version?: string };
+    const health = await response.json() as { status?: string; version?: string; capabilities?: string[] };
     if (response.ok && health.status === "ok" && health.version && health.version !== VERSION) {
       throw new Error(`后台服务版本为 ${health.version}，当前客户端需要 ${VERSION}。请先重启原来的后台服务（npm run dev），再运行聊天。`);
     }
+    if (response.ok && health.status === "ok" && health.version === VERSION && !health.capabilities?.includes("ordinary-chat")) {
+      throw new Error("后台服务尚未加载普通会话功能，请重启原来的后台服务（npm run dev），再运行聊天。已有会话和任务会保留。");
+    }
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("后台服务版本为")) throw error;
+    if (error instanceof Error && error.message.startsWith("后台服务")) throw error;
   }
   await mkdir(config.dataDir, { recursive: true, mode: 0o700 });
   const logfile = join(config.dataDir, "daemon.log");

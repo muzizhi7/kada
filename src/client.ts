@@ -16,8 +16,8 @@ export function createClient(config: Config): HarnessClient {
     async healthy() {
       try {
         const response = await fetch(`${base}/health`, { signal: AbortSignal.timeout(1000) });
-        const data = await response.json() as { status?: string; version?: string };
-        return response.ok && data.status === "ok" && data.version === VERSION;
+        const data = await response.json() as { status?: string; version?: string; capabilities?: string[] };
+        return response.ok && data.status === "ok" && data.version === VERSION && data.capabilities?.includes("ordinary-chat") === true;
       } catch { return false; }
     },
     async request<T>(path: string, method = "GET", data?: unknown): Promise<T> {

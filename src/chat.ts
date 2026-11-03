@@ -6,18 +6,13 @@ import type { HarnessClient, TaskMeta, TaskStatus } from "./client.js";
 import { errorText, SerialQueue } from "./util.js";
 import { briefText, usageText, verificationText } from "./presentation.js";
 import { isConfirmation } from "./preparation.js";
+import { conversationAnswer as answer } from "./conversation.js";
 
 type Message = TaskStatus["messages"][number];
 export type ChatEvent = { kind: "info" | "answer" | "error"; text: string };
 
-function answer(message: Message): string | undefined {
-  if (message.role !== "assistant" || message.content.some(b => b.type === "toolCall")) return;
-  if (!["stop", "length"].includes(message.stopReason)) return;
-  const text = message.content.filter(b => b.type === "text").map(b => b.text).join("\n");
-  return text.trim() ? text : undefined;
-}
 function answerKey(message: Message, text: string): string { return `${message.timestamp}:${text}`; }
-const HELP = `直接输入目标：先澄清并确认交付标准和预算，确认后自主执行。\n\n/new [目标]       新建任务，原任务继续在后台运行\n/confirm          确认刚展示的任务说明与预算\n/run 目标         已有明确授权，沿用配置预算直接执行\n/tasks            列出最近的任务\n/attach 任务ID    接回已有任务与待确认说明\n/status           查看目标、预算、核验范围和进度\n/pause            暂停当前任务\n/resume           恢复；显式补充一份配置/已确认预算，不代替目标确认\n/cancel           取消当前任务\n/help             显示帮助\n/quit             退出聊天，后台任务继续运行`;
+const HELP = `直接输入消息：普通问答直接回复，需要实际交付时再提出任务说明与预算。\n\n/new [消息]       新建对话，原任务继续在后台运行\n/confirm          确认刚展示的任务说明与预算\n/run 目标         已有明确授权，沿用配置预算直接执行\n/tasks            列出最近的对话与任务\n/attach 任务ID    接回已有对话或任务\n/status           查看状态、预算、核验范围和进度\n/pause            暂停当前对话或任务\n/resume           恢复；显式补充一份配置/已确认预算，不代替目标确认\n/cancel           取消当前对话或任务\n/help             显示帮助\n/quit             退出聊天，后台任务继续运行`;
 
 /** Conversation selection and delivery are independent of terminal rendering. */
 export class ChatSession {
@@ -31,7 +26,7 @@ export class ChatSession {
   async attach(id: string): Promise<void> {
     const status = await this.client.request<TaskStatus>(`/v1/tasks/${id}`);
     this.select(id);
-    this.info(`已接入任务 ${id}\n目标：${status.objective}\n输出目录：${status.workspace}`);
+    this.info(`已接入${status.interaction === "chat" ? "对话" : "任务"} ${id}\n${status.interaction === "chat" ? "首条消息" : "目标"}：${status.objective}\n输出目录：${status.workspace}`);
     if (!status.goal) {
       const answers = status.messages.map(m => ({ m, text: answer(m) })).filter(v => v.text !== undefined);
       for (const item of answers) this.printed.add(answerKey(item.m, item.text!));
@@ -68,22 +63,22 @@ export class ChatSession {
       }
       if (command === "/tasks") {
         const tasks = (await this.client.request<(TaskMeta & { status: string })[]>("/v1/tasks")).slice(0, 10);
-        if (!tasks.length) this.info("还没有任务，直接输入目标即可开始。");
+        if (!tasks.length) this.info("还没有对话，直接输入消息即可开始。");
         else for (const task of tasks) {
           this.info(`${task.id}  [${task.status}]  ${task.objective.slice(0, 100).replace(/\s+/g, " ")}`);
         }
         return true;
       }
       if (["/status", "/pause", "/resume", "/cancel"].includes(command!)) {
-        if (!this.taskId) throw new Error("还未选择任务。直接输入目标，或使用 /attach 任务ID。");
+        if (!this.taskId) throw new Error("还未选择对话。直接输入消息，或使用 /attach 任务ID。");
         if (command === "/status") {
           const status = await this.client.request<TaskStatus>(`/v1/tasks/${this.taskId}`);
           const goal = status.goal;
-          this.info(`任务：${status.id}\n状态：${status.status === "completed" ? "已交付（核验范围见下）" : status.status}\n子 Agent：${status.activeWorkerCount} 个运行 / ${status.workerCount} 个累计\n输出目录：${status.workspace}\n${usageText(status)}${goal ? `\n目标修订：${goal.revision}\n计划${status.planPolicy === "advisory" ? "（辅助进度）" : "（历史交付约束）"}：${goal.plan.filter(s => s.status === "done").length}/${goal.plan.length}\n自动返工：${goal.reworks}${goal.reason ? `\n原因：${goal.reason}` : ""}${goal.question ? `\n待回答：${goal.question}` : ""}` : ""}\n${verificationText(status)}${goal?.brief ? `\n${briefText(status)}${goal.confirmation ? "\n该版本已确认；预算不会因普通消息或重复确认补充。" : ""}` : ""}`);
+          this.info(`${status.interaction === "chat" ? "对话" : "任务"}：${status.id}\n状态：${status.status === "completed" ? "已交付（核验范围见下）" : status.status}\n子 Agent：${status.activeWorkerCount} 个运行 / ${status.workerCount} 个累计\n输出目录：${status.workspace}\n${usageText(status)}${goal ? `\n目标修订：${goal.revision}\n计划${status.planPolicy === "advisory" ? "（辅助进度）" : "（历史交付约束）"}：${goal.plan.filter(s => s.status === "done").length}/${goal.plan.length}\n自动返工：${goal.reworks}${goal.reason ? `\n原因：${goal.reason}` : ""}${goal.question ? `\n待回答：${goal.question}` : ""}` : ""}\n${verificationText(status)}${goal?.brief ? `\n${briefText(status)}${goal.confirmation ? "\n该版本已确认；预算不会因普通消息或重复确认补充。" : ""}` : ""}`);
         } else {
           await this.client.request(`/v1/tasks/${this.taskId}/${command!.slice(1)}`, "POST", {});
           this.activity = "";
-          this.info(command === "/pause" ? "任务已暂停。" : command === "/resume" ? "任务已恢复。" : "任务已取消；输入 /new 开始新任务。");
+          this.info(command === "/pause" ? "已暂停。" : command === "/resume" ? "已恢复。" : "已取消；输入 /new 开始新对话。");
         }
         return true;
       }
@@ -107,9 +102,10 @@ export class ChatSession {
   }
   private async send(message: string, confirmed = false): Promise<void> {
     if (!this.taskId) {
-      const task = await this.client.request<TaskMeta>("/v1/tasks", "POST", { objective: message, workspace: this.workspace, confirmed });
+      const task = await this.client.request<TaskMeta>("/v1/tasks", "POST", { objective: message, workspace: this.workspace, confirmed, ...(confirmed ? {} : { mode: "chat" }) });
       this.select(task.id);
-      this.info(`任务：${task.id}\n输出目录：${task.workspace}\n${confirmed ? "沿用已有授权与配置预算直接执行。" : "先整理目标和交付标准，确认前只读取材料。"}费用上限 $${task.maxEstimatedCostUsd ?? 1}，配置时限 ${(task.deadlineAt - task.createdAt) / 60_000} 分钟。`);
+      this.info(confirmed ? `任务：${task.id}\n输出目录：${task.workspace}\n沿用已有授权与配置预算直接执行。费用上限 $${task.maxEstimatedCostUsd ?? 1}，配置时限 ${(task.deadlineAt - task.createdAt) / 60_000} 分钟。`
+        : `对话：${task.id}\n普通问答直接回复，需要实际交付时再确认任务说明与预算。`);
     } else {
       await this.client.request(`/v1/tasks/${this.taskId}/messages`, "POST", { message, requestId: randomUUID() });
       this.info("消息已发送，Agent 会继续当前对话。");
@@ -152,7 +148,7 @@ export class ChatSession {
     if (activity === this.activity) return;
     this.activity = activity;
     if (status.status === "running" || status.status === "pending") {
-      this.info(status.preparation && !goal?.confirmation ? "正在整理目标、交付标准与预算…" : goal?.reworks ? `正在修正验收问题，第 ${goal.reworks} 次自动返工…` : status.workerCount ? `正在处理，已创建 ${status.workerCount} 个子 Agent…` : "正在处理…");
+      this.info(status.interaction === "chat" ? "正在回复…" : status.preparation && !goal?.confirmation ? "正在整理目标、交付标准与预算…" : goal?.reworks ? `正在修正验收问题，第 ${goal.reworks} 次自动返工…` : status.workerCount ? `正在处理，已创建 ${status.workerCount} 个子 Agent…` : "正在处理…");
     } else if (status.status === "verifying") this.info(status.schemaVersion === 3 && !status.review ? "已提交结果，正在检查交付物…" : "已提交结果，正在检查交付物并独立评审…");
     else if (status.status === "completed" && !goal?.candidate) this.info(`已提交结果。\n${verificationText(status)}`);
     else if (status.status === "waiting_user") this.info(`需要补充信息：${goal?.question ?? goal?.reason}`);
@@ -182,7 +178,7 @@ export async function runChat(client: HarnessClient, options: {
     if (terminal && !closed) rl.prompt(true);
   };
   const session = new ChatSession(client, render, options.workspace);
-  output.write("Local Pi Harness · 终端聊天\n输入目标，先确认交付标准与预算，再自主执行。/help 查看命令，/quit 退出。\n\n");
+  output.write("Kada · 终端聊天\n直接聊天，需要实际交付时再确认任务说明与预算。/help 查看命令，/quit 退出。\n\n");
   const end = new Promise<void>(resolve => rl.once("close", () => { closed = true; resolve(); }));
   rl.on("SIGINT", () => rl.close());
   let commandWork: Promise<unknown> = Promise.resolve();
@@ -217,5 +213,5 @@ export async function runChat(client: HarnessClient, options: {
   await commandWork;
   await polling;
   finished = true;
-  output.write(`已退出聊天。任务按当前状态保存在后台；已确认的执行继续，待确认任务不会开始执行。${session.taskId ? `重新运行 npm run chat，再输入 /attach ${session.taskId} 可继续。` : ""}\n`);
+  output.write(`已退出聊天。会话保存在后台；已确认的任务继续执行，待确认任务不会开始执行。${session.taskId ? `重新运行 npm run chat，再输入 /attach ${session.taskId} 可继续。` : ""}\n`);
 }

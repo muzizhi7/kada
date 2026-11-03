@@ -20,7 +20,7 @@ export async function buildPet(dataDir: string) {
   if (process.platform !== "darwin") throw new Error("桌面小伙伴首版支持 macOS 13 及以上；其他平台可继续使用 npm run chat。");
   const app = join(dataDir, "desktop", "Local Pi Pet.app");
   const contents = join(app, "Contents"), executable = join(contents, "MacOS", "LocalPiPet");
-  const sources = ["PetCore.swift", "PetAppearance.swift", "PetInput.swift", "PetApp.swift"].map(name => join(desktop, name));
+  const sources = ["PetCore.swift", "PetAppearance.swift", "PetInput.swift", "PetHandoff.swift", "PetApp.swift"].map(name => join(desktop, name));
   const identity = `local.piharness.pet.${createHash("sha256").update(resolve(dataDir)).digest("hex").slice(0, 12)}`;
   await mkdir(dirname(executable), { recursive: true, mode: 0o700 });
   const signature = createHash("sha256").update(VERSION);

@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { BACKGROUND_CONTEXT as ctx } from "@earendil-works/chord/context";
-import { Harness, configure, createRegistry, type Conversation, type ConversationRecord, type Cursor, type EntryId, type Extension } from "@earendil-works/pi-durable";
+import { Harness, UserEntry, configure, createRegistry, type Conversation, type ConversationRecord, type Cursor, type EntryId, type Extension } from "@earendil-works/pi-durable";
 import { estimateContextTokens } from "@earendil-works/pi-ai/utils/estimate";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import type { Models } from "@earendil-works/pi-ai";
@@ -23,6 +23,7 @@ import { hashFiles, verificationExtension } from "./verification.js";
 import { MethodStore, learningExtension, learningInstructions, learningReminder, settleLearning } from "./learning.js";
 import { pinSkills, skillInstructions, skillReads, SkillStore, settleSkills } from "./skills.js";
 import { LocalDiscovery, localContextInstructions, type DiscoveryOptions, type LocalContext } from "./discovery.js";
+import { conversationInstructions } from "./conversation.js";
 
 export type Control = "active" | "paused" | "cancelled" | "budget_limited";
 export interface TaskMeta {
@@ -39,11 +40,17 @@ export interface TaskMeta {
   /** Stored per task: absence preserves the historical checkpoint requirement. */
   planPolicy?: "advisory";
   preparation?: boolean;
+  /** Absent on historical/explicit tasks. A chat creates GoalDoc only on task_prepare. */
+  entrypoint?: "chat";
+  /** Cumulative conversation limits after an explicit refill; configured grants stay unchanged. */
+  chatBudget?: { costLimit: number; tokenLimit: number | null };
   learning?: boolean;
   /** Absent on v0.6 and older tasks: retain their tool/prompt semantics on recovery. */
   resourcePolicy?: "pi-skills";
   /** Only new tasks opt in; old tasks never acquire personal context during recovery. */
   discovery?: boolean;
+  /** New tasks only: existing discovery tasks retain their original metadata-only context. */
+  userMemory?: true;
   acceptance?: AcceptanceCheck[];
   maxTotalTokens?: number;
   maxEstimatedCostUsd?: number;
@@ -61,6 +68,7 @@ interface Active {
   reviewExtensions: Extension[];
   executionExtensions: Extension[];
   preparationExtensions: Extension[];
+  chatExtensions: Extension[];
   methods?: MethodStore;
   skills?: SkillStore;
   localContext?: LocalContext;
@@ -91,7 +99,7 @@ export class LocalRuntime {
           catch (error) {
             active.enabled = false;
             try {
-              if (active.meta.schemaVersion !== undefined) await this.updateGoal(active, goal => {
+              if (await this.goalState(active)) await this.updateGoal(active, goal => {
                 goal.phase = "failed"; goal.reason = errorText(error); goalEvent(goal, "failed", goal.reason);
               });
               else console.error(errorText(error));
@@ -108,10 +116,14 @@ export class LocalRuntime {
   }
   private metaFile(id: string): string { return join(this.directory(id), "task.json"); }
   async localSetup(refresh = false) {
-    const empty = { enabled: this.config.discovery === true, agents: 0, skills: 0, plugins: 0, overview: null, catalogue: null, notices: [] as string[] };
+    const empty = { enabled: this.config.discovery === true, agents: 0, skills: 0, plugins: 0, overview: null, catalogue: null, memory: null, memoryFacts: 0, notices: [] as string[] };
     if (!empty.enabled) return empty;
     try { return await this.discovery.view(refresh); }
     catch { return { ...empty, notices: ["本机环境发现暂不可用，任务仍可正常执行。"] }; }
+  }
+  async localMemory() {
+    if (this.config.discovery !== true) return { enabled: false, updatedAt: null, facts: [], notices: [] };
+    return this.discovery.memoryView();
   }
   async metadata(id: string): Promise<TaskMeta> { return readJson<TaskMeta>(this.metaFile(id)); }
   private async metadataList(): Promise<TaskMeta[]> {
@@ -124,7 +136,7 @@ export class LocalRuntime {
     const result = [];
     for (const meta of await this.metadataList()) {
       const status = await this.status(meta.id);
-      result.push({ ...meta, deadlineAt: status.deadlineAt, status: status.status, workerCount: status.workerCount, phase: status.goal?.phase });
+      result.push({ ...meta, objective: status.objective, deadlineAt: status.deadlineAt, status: status.status, workerCount: status.workerCount, phase: status.goal?.phase });
     }
     return result;
   }
@@ -134,11 +146,12 @@ export class LocalRuntime {
       else if (meta.control === "cancelled") await this.cancel(meta.id);
     }
   }
-  async create(objective: string, workspace?: string, acceptance: unknown = [], options: { prepare?: boolean } = {}): Promise<TaskMeta> {
+  async create(objective: string, workspace?: string, acceptance: unknown = [], options: { prepare?: boolean; chat?: boolean } = {}): Promise<TaskMeta> {
     return this.changes.run(async () => {
       if (this.closing) throw new Error("Runtime is shutting down");
       if (typeof objective !== "string" || !objective.trim() || objective.length > 32000) throw new Error("Provide an objective between 1 and 32000 characters");
       const checks = acceptanceChecks(acceptance);
+      if (options.chat && checks.length) throw new Error("Acceptance checks belong to an explicit task, not an ordinary conversation");
       const model = validateModel(this.options.models, this.config.model);
       if (this.config.subagentModel) validateModel(this.options.models, this.config.subagentModel);
       const id = randomUUID();
@@ -148,9 +161,10 @@ export class LocalRuntime {
         createdAt: Date.now(), deadlineAt: Date.now() + this.config.maxDurationMs,
         maxSubagents: this.config.maxSubagents, control: "active", schemaVersion: 3, planPolicy: "advisory", acceptance: checks,
         ...(!this.options.legacyResources ? { resourcePolicy: "pi-skills" as const } : {}),
-        ...(this.config.discovery === true && !this.options.legacyResources ? { discovery: true } : {}),
-        ...(options.prepare ? { preparation: true } : {}),
-        ...(options.prepare && this.config.learning ? { learning: true } : {}),
+        ...(this.config.discovery === true && !this.options.legacyResources ? { discovery: true, userMemory: true as const } : {}),
+        ...(options.prepare || options.chat ? { preparation: true } : {}),
+        ...(options.chat ? { entrypoint: "chat" as const } : {}),
+        ...((options.prepare || options.chat) && this.config.learning ? { learning: true } : {}),
         ...(this.config.maxTotalTokens === undefined ? {} : { maxTotalTokens: this.config.maxTotalTokens }),
         maxEstimatedCostUsd: this.config.maxEstimatedCostUsd ?? 1, review: this.config.review ?? false,
         maxReworks: this.config.maxReworks ?? 3, maxStalls: this.config.maxStalls ?? 2 };
@@ -166,11 +180,21 @@ export class LocalRuntime {
       const workspace = await Workspace.open(meta.workspace);
       const registry = createRegistry();
       const nativeSkills = meta.resourcePolicy === "pi-skills";
-      const localContext = meta.discovery && this.config.discovery === true ? await this.discovery.context().catch(() => undefined) : undefined;
+      const localContext = meta.discovery && this.config.discovery === true ? await this.discovery.context(meta.userMemory === true).catch(() => undefined) : undefined;
+      const statements = () => this.userStatements(this.active.get(meta.id)!);
+      const memory = localContext?.memory ? this.discovery.memory.extension(meta.id, localContext.memory.home, () => this.discovery.load(), meta.entrypoint === "chat" ? statements : undefined) : undefined;
       const readObserver = skillReads(localContext?.skills);
       const goal = goalExtension({ advisoryPlan: meta.planPolicy === "advisory", captureSkill: nativeSkills && !!meta.learning }), readonly = workspaceExtension(workspace, true), review = reviewExtension();
       const preparation = preparationExtension(workspace, this.defaultBudget(meta));
-      const preparationExtensions = localContext ? [preparation, readObserver] : [preparation];
+      const preparationExtensions = localContext ? [preparation, readObserver, ...(memory ? [memory] : [])] : [preparation];
+      const conversation = preparationExtension(workspace, this.defaultBudget(meta), { startGoal: async () => {
+        const messages = await statements();
+        return { objective: messages.at(-1) ?? meta.objective, userMessages: messages.slice(0, -1),
+          tokenLimit: meta.chatBudget?.tokenLimit ?? meta.maxTotalTokens ?? null,
+          costLimit: meta.chatBudget?.costLimit ?? meta.maxEstimatedCostUsd ?? 1 };
+      } });
+      const chatExtensions = [conversation, ...(memory ? [memory] : []),
+        ...(this.config.web !== false ? [webExtension(workspace)] : [])];
       const verification = verificationExtension(workspace, nativeSkills);
       const methods = meta.learning && !nativeSkills ? await (this.methodStore ??= MethodStore.open(this.config.dataDir)) : undefined;
       const skills = meta.learning && nativeSkills ? await (this.skillStore ??= SkillStore.open(this.config.dataDir)) : undefined;
@@ -183,14 +207,15 @@ export class LocalRuntime {
       } }) : undefined;
       const extra = (this.options.extensions ?? []).filter(e => !(meta.schemaVersion === 3 && this.options.computer && e.name === "local_computer"));
       if (meta.schemaVersion === 3 && this.options.computer) extra.push(this.options.computer.forTask(meta.id));
-      const coordinatorOnly = [goal, verification, ...(learning ? [learning] : []), ...extra.filter(e => e.name === "local_computer")];
+      const coordinatorOnly = [goal, verification, ...(memory ? [memory] : []), ...(learning ? [learning] : []), ...extra.filter(e => e.name === "local_computer")];
       const extensions = [meta.schemaVersion === 3 ? localExecution() : workspaceExtension(workspace), delegationExtension(meta.workspace, meta.maxSubagents, meta.subagentModel, coordinatorOnly),
         ...(nativeSkills ? [readObserver] : []),
+        ...(memory ? [memory] : []),
         ...(meta.schemaVersion !== undefined ? [goal] : []),
         ...(meta.preparation ? [verification] : []),
         ...(learning ? [learning] : []),
         ...(meta.schemaVersion === 3 && this.config.web !== false ? [webExtension(workspace)] : []), ...extra];
-      for (const extension of [...extensions, ...(meta.preparation ? preparationExtensions : []), ...(meta.schemaVersion !== undefined ? [readonly, review] : [])]) registry.install(extension);
+      for (const extension of [...extensions, ...(meta.preparation ? preparationExtensions : []), ...(meta.entrypoint === "chat" ? chatExtensions : []), ...(meta.schemaVersion !== undefined ? [readonly, review] : [])]) registry.install(extension);
       const storage = await openNodeSqliteStorage(join(this.directory(meta.id), "session.sqlite"));
       let harness: Harness;
       try {
@@ -201,11 +226,12 @@ export class LocalRuntime {
             ...(meta.schemaVersion === 3 ? { compaction: taskCompaction(this.options.models, [meta.model, meta.subagentModel ?? meta.model], this.config.compactAtTokens) } : {}) },
           onReport: (error, info) => console.error(JSON.stringify({ task: meta.id, type: info.type, error: errorText(error) })),
         }, ctx);
-        const root = await harness.root(ctx, { agent: { model: meta.model, cwd: meta.workspace, extensions: meta.preparation ? preparationExtensions : extensions, instructions: this.instructions(meta, !!meta.preparation) } });
+        const root = await harness.root(ctx, { agent: { model: meta.model, cwd: meta.workspace, extensions: meta.entrypoint === "chat" ? chatExtensions : meta.preparation ? preparationExtensions : extensions,
+          instructions: meta.entrypoint === "chat" ? conversationInstructions(meta.workspace) : this.instructions(meta, !!meta.preparation) } });
         active = { harness, storage, root, meta, workspace, enabled: false, reviewExtensions: [readonly, review],
-          executionExtensions: extensions, preparationExtensions, compactionCounts: new Map(), methods, skills, localContext };
+          executionExtensions: extensions, preparationExtensions, chatExtensions, compactionCounts: new Map(), methods, skills, localContext };
         this.active.set(meta.id, active);
-        if (meta.schemaVersion !== undefined) await this.updateGoal(active, state => {
+        if (meta.schemaVersion !== undefined && meta.entrypoint !== "chat") await this.updateGoal(active, state => {
           if (state.initialized) return;
           state.initialized = true; state.objective = meta.objective;
           state.tokenLimit = meta.maxTotalTokens ?? (meta.schemaVersion === 3 ? null : 500_000);
@@ -217,7 +243,7 @@ export class LocalRuntime {
       } catch (error) { await storage.close(ctx); throw error; }
     }
     if (run && meta.control === "active") {
-      const goal = meta.schemaVersion !== undefined ? await readGoal(active.harness) : undefined;
+      const goal = await this.goalState(active);
       const latest = goal ? undefined : await this.latest(active);
       if (goal && ["clarifying", "awaiting_confirmation"].includes(goal.phase)) {
         // Finish an admitted read-only proposal tool after a crash, without starting execution.
@@ -227,17 +253,38 @@ export class LocalRuntime {
       }
       const finished = goal ? ["completed", "blocked", "waiting_user", "needs_attention", "failed"].includes(goal.phase) : latest?.status === "done" || latest?.status === "unanswered";
       if (finished) { await this.finishLearning(active); return active; }
-      if (Date.now() >= this.deadline(active, goal) || (goal && await this.budgetReason(active, goal))) {
+      if (Date.now() >= this.deadline(active, goal) || await this.budgetReason(active, goal)) {
         await this.limit(active, "Saved task budget exhausted; explicit resume required");
         return active;
       }
       active.enabled = true;
-      if (meta.schemaVersion !== undefined) await this.dispatchOutbox(active);
+      if (goal) await this.dispatchOutbox(active);
       const initial = await active.harness.commit(tx => tx.submissionByRequest(active!.root.id, "initial"), ctx);
       if (!initial && Date.now() < this.deadline(active, goal)) await active.root.submit({ type: "input", content: meta.objective + (active.methods && goal?.confirmation ? learningReminder : ""), requestId: "initial" }, ctx);
       active.harness.resume();
     }
     return active;
+  }
+  /** Pi snapshot reads do not create the business document in an ordinary chat. */
+  private async goalState(active: Active): Promise<GoalState | undefined> {
+    if (active.meta.schemaVersion === undefined) return;
+    if (active.meta.entrypoint !== "chat") return readGoal(active.harness);
+    const state = await active.harness.snapshot(GoalDoc, ctx);
+    return state?.initialized ? plain(state) : undefined;
+  }
+  private async userStatements(active: Active): Promise<string[]> {
+    const goal = await this.goalState(active);
+    if (goal) return [goal.objective, ...goal.userMessages];
+    const messages: string[] = [];
+    let cursor: Cursor | undefined;
+    do {
+      const page = await active.root.entries({ order: "ascending" }, 200, cursor, ctx);
+      for (const entry of page.items) if (UserEntry.is(entry)) for (const message of entry.model ?? []) {
+        if (message.role === "user") messages.push(typeof message.content === "string" ? message.content : message.content.filter(b => b.type === "text").map(b => b.text).join("\n"));
+      }
+      cursor = page.next;
+    } while (cursor);
+    return messages;
   }
   private defaultBudget(meta: TaskMeta): TaskBudget {
     return { maxEstimatedCostUsd: meta.maxEstimatedCostUsd ?? 1, maxDurationMs: this.config.maxDurationMs,
@@ -254,7 +301,12 @@ export class LocalRuntime {
     };
   }
   private async configureStage(active: Active): Promise<void> {
-    let state = active.meta.schemaVersion !== undefined ? await readGoal(active.harness) : undefined;
+    let state = await this.goalState(active);
+    if (active.meta.entrypoint === "chat" && !state) {
+      await active.root.configure({ extensions: active.chatExtensions,
+        instructions: conversationInstructions(active.meta.workspace) + (active.localContext ? localContextInstructions(active.localContext) : "") }, ctx);
+      return;
+    }
     const preparing = !!active.meta.preparation && !state?.confirmation;
     if (!preparing && active.meta.resourcePolicy === "pi-skills" && state && !state.skills) {
       const skills = await pinSkills(active.workspace, this.directory(active.meta.id), active.skills).catch(error => ({ pins: [], loaded: [], notice: errorText(error) }));
@@ -271,6 +323,7 @@ export class LocalRuntime {
         (active.localContext ? localContextInstructions(active.localContext) : "") }, ctx);
   }
   private async finishLearning(active: Active): Promise<void> {
+    if (!await this.goalState(active)) return;
     if (active.meta.resourcePolicy === "pi-skills") {
       const state = await readGoal(active.harness);
       if (!state.skills || state.skills.settledRevision === state.revision) return;
@@ -299,10 +352,13 @@ export class LocalRuntime {
   private async latest(active: Active, conversationId = active.root.id) {
     return (await active.storage.scanSubmissions({ conversationId, order: "descending" }, 1, undefined, ctx)).items[0];
   }
-  private async budgetReason(active: Active, goal: GoalState): Promise<string | undefined> {
+  private async budgetReason(active: Active, goal?: GoalState): Promise<string | undefined> {
+    if (!goal && active.meta.entrypoint !== "chat") return;
     const used = taskUsage(await active.harness.usage(ctx));
-    if (goal.costLimit !== undefined && used.estimatedCostUsd >= goal.costLimit) return `Task estimated cost budget exhausted ($${used.estimatedCostUsd.toFixed(4)} / $${goal.costLimit})`;
-    if (goal.tokenLimit !== null && used.totalTokens >= goal.tokenLimit) return `Task token budget exhausted (${goal.tokenLimit})`;
+    const costLimit = goal ? goal.costLimit : active.meta.chatBudget?.costLimit ?? active.meta.maxEstimatedCostUsd ?? 1;
+    const tokenLimit = goal ? goal.tokenLimit : active.meta.chatBudget?.tokenLimit ?? active.meta.maxTotalTokens ?? null;
+    if (costLimit !== undefined && used.estimatedCostUsd >= costLimit) return `Task estimated cost budget exhausted ($${used.estimatedCostUsd.toFixed(4)} / $${costLimit})`;
+    if (tokenLimit !== null && used.totalTokens >= tokenLimit) return `Task token budget exhausted (${tokenLimit})`;
   }
   private async dispatchOutbox(active: Active): Promise<void> {
     const outbox = (await readGoal(active.harness)).outbox;
@@ -314,12 +370,14 @@ export class LocalRuntime {
     if (active.meta.control !== "active") return;
     const inspection = await active.harness.inspect(ctx);
     const busy = inspection.tasks.length > 0 || inspection.submissions.length > 0;
-    if (active.meta.schemaVersion === undefined) {
+    let goal = await this.goalState(active);
+    if (!goal) {
+      const reason = await this.budgetReason(active);
+      if (reason) { await this.limit(active, reason); return; }
       if (!busy) { active.enabled = false; return; }
       if (Date.now() >= active.meta.deadlineAt) await this.limit(active, "Task time budget exhausted");
       return;
     }
-    let goal = await readGoal(active.harness);
     if (["clarifying", "awaiting_confirmation"].includes(goal.phase)) {
       if (busy) await this.abortAll(active);
       active.enabled = false;
@@ -502,7 +560,7 @@ export class LocalRuntime {
   private async limit(active: Active, reason: string): Promise<void> {
     active.meta.control = "budget_limited";
     await atomicJson(this.metaFile(active.meta.id), active.meta);
-    if (active.meta.schemaVersion !== undefined) await this.updateGoal(active, goal => { goal.reason = reason; goalEvent(goal, "budget_limited", reason); });
+    if (await this.goalState(active)) await this.updateGoal(active, goal => { goal.reason = reason; goalEvent(goal, "budget_limited", reason); });
     await this.closeTask(active.meta.id);
   }
   async status(id: string) {
@@ -514,20 +572,22 @@ export class LocalRuntime {
       const conversations = await this.conversations(active);
       const inspection = await active.harness.inspect(ctx);
       const busy = inspection.tasks.length > 0 || inspection.submissions.length > 0;
-      const goal = meta.schemaVersion !== undefined ? await readGoal(active.harness) : undefined;
+      const goal = await this.goalState(active);
       const status = meta.control !== "active" ? meta.control : goal ?
         goal.phase === "working" ? busy ? "running" : "pending" : ["clarifying", "awaiting_confirmation"].includes(goal.phase) && busy ? "running" : goal.phase === "submitted" ? "verifying" : goal.phase :
         busy ? "running" : submission?.status === "done" ? "answered" : submission?.status === "unanswered" ? "failed" : "pending";
       const usage = await active.harness.usage(ctx);
       const compactions = await this.compactionTotals(active, conversations);
       const workerIds = new Set(conversations.filter(c => c.owner).map(c => c.id));
-      return { ...meta, deadlineAt: this.deadline(active, goal), status, goal, submission, messages: context.messages, workerCount: workerIds.size,
+      const interaction = meta.entrypoint === "chat" && !goal ? "chat" as const : "goal" as const;
+      return { ...meta, objective: goal?.objective || meta.objective, interaction, deadlineAt: this.deadline(active, goal), status, goal, submission, messages: context.messages, workerCount: workerIds.size,
         briefDigest: goal?.brief ? briefDigest(goal.brief) : null,
         activeWorkerCount: new Set(inspection.tasks.map(t => t.record.conversationId).filter(id => workerIds.has(id))).size,
         compactions: compactions.total, rootCompactions: compactions.root,
         contextUsage: { estimatedTokens: estimateContextTokens(context.messages).tokens,
           contextWindow: this.options.models.getModel(meta.model.provider, meta.model.modelId)?.contextWindow ?? null },
-        budget: { ...taskUsage(usage), tokenLimit: goal?.tokenLimit ?? null, costLimit: goal?.costLimit ?? null },
+        budget: { ...taskUsage(usage), tokenLimit: goal ? goal.tokenLimit : meta.entrypoint === "chat" ? meta.chatBudget?.tokenLimit ?? meta.maxTotalTokens ?? null : null,
+          costLimit: goal ? goal.costLimit ?? null : meta.entrypoint === "chat" ? meta.chatBudget?.costLimit ?? meta.maxEstimatedCostUsd ?? 1 : null },
         resumeBudget: this.resumeBudget(meta, goal),
         conversations, tasks: inspection.tasks, usage };
     });
@@ -537,8 +597,8 @@ export class LocalRuntime {
     await this.changes.run(async () => {
       const meta = await this.metadata(id);
       if (meta.control !== "active") throw new Error(`Task is ${meta.control}; resume it before confirmation`);
-      const active = await this.open(meta, false), goal = await readGoal(active.harness);
-      if (!meta.preparation || !goal.brief) throw new Error("No task brief is ready for confirmation");
+      const active = await this.open(meta, false), goal = await this.goalState(active);
+      if (!meta.preparation || !goal?.brief) throw new Error("No task brief is ready for confirmation");
       if (goal.brief.revision !== revision || briefDigest(goal.brief) !== digest) throw new Error("任务说明已更新，请查看最新版本后再确认。");
       if (goal.confirmation) {
         await this.configureStage(active);
@@ -581,13 +641,22 @@ export class LocalRuntime {
       const meta = await this.metadata(id);
       if (meta.control !== "active") throw new Error(`Task is ${meta.control}; resume it first`);
       const active = await this.open(meta, false);
-      if (meta.schemaVersion === undefined) {
-        if (Date.now() >= meta.deadlineAt) throw new Error("Task time budget has expired; resume with a fresh budget first");
-        await active.root.submit({ type: "input", content: message, requestId }, ctx); active.enabled = true; return;
-      }
       const key = `user:${requestId}`;
       if (await active.harness.commit(tx => tx.submissionByRequest(active.root.id, key), ctx)) return;
-      const before = await readGoal(active.harness);
+      const before = await this.goalState(active);
+      if (!before) {
+        const reason = await this.budgetReason(active);
+        if (reason) { await this.limit(active, reason); throw new Error(reason); }
+        if (meta.entrypoint === "chat") {
+          // Idle conversation time is not execution time; each user turn gets the configured time window.
+          meta.deadlineAt = Date.now() + this.config.maxDurationMs;
+          active.meta = meta;
+          await atomicJson(this.metaFile(id), meta);
+        } else if (Date.now() >= meta.deadlineAt) throw new Error("Task time budget has expired; resume with a fresh budget first");
+        await active.root.submit({ type: "input", content: message, requestId: meta.entrypoint === "chat" ? key : requestId,
+          ...(meta.entrypoint === "chat" ? { whenBusy: "steer" as const } : {}) }, ctx);
+        active.enabled = true; return;
+      }
       const preparing = meta.preparation && !before.confirmation;
       if (!preparing && Date.now() >= this.deadline(active, before)) throw new Error("Task time budget has expired; resume with a fresh budget first");
       if (before.outbox?.requestId === key) { await this.dispatchOutbox(active); active.enabled = true; return; }
@@ -626,7 +695,7 @@ export class LocalRuntime {
       meta.control = "active"; meta.deadlineAt = Date.now() + this.config.maxDurationMs;
       await atomicJson(this.metaFile(id), meta);
       const active = await this.open(meta, false);
-      if (meta.schemaVersion !== undefined) {
+      if (await this.goalState(active)) {
         const used = taskUsage(await active.harness.usage(ctx));
         await this.updateGoal(active, goal => {
           const grant = this.resumeBudget(meta, goal);
@@ -640,9 +709,14 @@ export class LocalRuntime {
           }
           goal.reason = null; goal.question = null; goalEvent(goal, "resumed", `New deadline ${meta.deadlineAt}, cost limit ${goal.costLimit ?? "unset"}, token limit ${goal.tokenLimit ?? "unset"}`);
         });
+      } else if (meta.entrypoint === "chat") {
+        const used = taskUsage(await active.harness.usage(ctx));
+        meta.chatBudget = { costLimit: used.estimatedCostUsd + (meta.maxEstimatedCostUsd ?? 1),
+          tokenLimit: meta.maxTotalTokens === undefined ? null : used.totalTokens + meta.maxTotalTokens };
+        await atomicJson(this.metaFile(id), meta);
       }
       await this.open(meta, true);
-      if (meta.schemaVersion === undefined && (await this.latest(active))?.status === "unanswered") {
+      if (!await this.goalState(active) && (await this.latest(active))?.status === "unanswered") {
         await active.root.submit({ type: "input", content: "Resume the original objective from saved files and history.", requestId: `resume:${meta.deadlineAt}` }, ctx);
         active.enabled = true;
       }

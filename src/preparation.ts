@@ -3,7 +3,7 @@ import { Type } from "@earendil-works/pi-ai";
 import { createReadTool } from "@earendil-works/pi-durable/tools";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import { acceptanceChecks, CheckSchema, type AcceptanceCheck } from "./checks.js";
-import { GoalDoc, goalEvent, goalExtension, plain } from "./goal.js";
+import { GoalDoc, goalEvent, goalExtension, plain, type GoalState } from "./goal.js";
 import type { PathSnapshot, Workspace } from "./workspace.js";
 
 export type TaskBudget = { maxEstimatedCostUsd: number; maxDurationMs: number; maxTotalTokens?: number };
@@ -37,17 +37,20 @@ const text = Type.String({ minLength: 1, maxLength: 2000 });
 const lines = (minimum = 0, maximum = 16) => Type.Array(text, { minItems: minimum, maxItems: maximum });
 
 /** Only reads and one business-state tool; execution tools are absent until host confirmation. */
-export function preparationExtension(workspace: Workspace, defaults: TaskBudget) {
-  return defineExtension({ name: "local_preparation", tools: [
+export function preparationExtension(workspace: Workspace, defaults: TaskBudget, options: {
+  /** Ordinary conversations create business goal state only when this tool is used. */
+  startGoal?: () => Promise<Pick<GoalState, "objective" | "userMessages" | "tokenLimit" | "costLimit">>;
+} = {}) {
+  return defineExtension({ name: options.startGoal ? "local_conversation" : "local_preparation", tools: [
     createReadTool(),
-    ...goalExtension().tools!.filter(t => t.name === "task_status"),
+    ...goalExtension().tools!.filter(t => !options.startGoal && t.name === "task_status"),
     defineTool({
       name: "list_files", description: "List existing workspace materials, without modifying anything.",
       parameters: Type.Object({ path: Type.Optional(Type.String()) }), replay: "safe",
       execute: async (args, _api, ctx) => ({ output: [{ type: "text", text: (await workspace.list(args.path)).join("\n") }] }),
     }),
     defineTool({
-      name: "task_prepare", description: "Save a concise task brief for the user. Ask only material unanswered questions; otherwise propose deliverables, scope, standards and total budget. For an existing project test or supplied independent checker, put its exact command and unchanged input paths plus expected output paths in criterion.verification (check only). Inputs must already exist; confirmation pins their original bytes. Do not list editable source as immutable input. New self-tests remain ordinary checks and are not independent proof. Only the host can accept user confirmation. Ends this planning run.",
+      name: "task_prepare", description: (options.startGoal ? "Start a Goal only for substantive work the user actually requested: concrete deliverables, project/file changes or sustained execution. Never use for greetings, questions, advice, background/memory discussion or closing remarks; answer those directly. " : "") + "Save a concise task brief for the user. Ask only material unanswered questions; otherwise propose deliverables, scope, standards and total budget. For an existing project test or supplied independent checker, put its exact command and unchanged input paths plus expected output paths in criterion.verification (check only). Inputs must already exist; confirmation pins their original bytes. Do not list editable source as immutable input. New self-tests remain ordinary checks and are not independent proof. Only the host can accept user confirmation. Ends this planning run.",
       parameters: Type.Object({
         outcome: text, deliverables: lines(1), inputs: lines(),
         criteria: Type.Array(Type.Object({ text, method: Type.Union([Type.Literal("check"), Type.Literal("inspect")]),
@@ -64,6 +67,7 @@ export function preparationExtension(workspace: Workspace, defaults: TaskBudget)
             catch { throw new Error(`Verification input must already exist as an original file/directory: ${path}. Put new tests and editable source in outputs, or use an ordinary self-check without a fixed verification contract.`); }
           }
         }
+        const initial = options.startGoal ? await options.startGoal() : undefined;
         const result = await api.commit(async tx => {
           const state = await tx.doc(GoalDoc), key = String(api.taskId);
           if (!state.appliedTools[key]) {
@@ -74,6 +78,10 @@ export function preparationExtension(workspace: Workspace, defaults: TaskBudget)
             const checks = acceptanceChecks(args.checks);
             const merged = new Set([...state.checks.map(c => JSON.stringify(c.check)), ...checks.map(c => JSON.stringify(c))]);
             if (merged.size > 32) throw new Error("At most 32 acceptance checks per task");
+            if (initial && !state.initialized) {
+              Object.assign(state, initial, { initialized: true });
+              goalEvent(state, "created", state.objective);
+            }
             state.brief = { ...args, revision: (state.brief?.revision ?? 0) + 1, checks, budget: budgetValues({ ...defaults, ...args.budget }) };
             state.phase = args.questions.length ? "clarifying" : "awaiting_confirmation";
             state.question = args.questions.length ? args.questions.join("\n") : null;

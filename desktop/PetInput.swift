@@ -19,10 +19,13 @@ struct PetDraftInput: NSViewRepresentable {
         let editor = DraftTextView(frame: .zero)
         editor.isRichText = false; editor.drawsBackground = false; editor.allowsUndo = true
         editor.isEditable = true; editor.isSelectable = true
-        editor.font = .systemFont(ofSize: 13)
-        editor.textColor = NSColor(calibratedRed: 0.17, green: 0.20, blue: 0.32, alpha: 1)
-        editor.insertionPointColor = NSColor(calibratedRed: 0.40, green: 0.47, blue: 0.81, alpha: 1)
-        editor.textContainerInset = NSSize(width: 5, height: 6)
+        editor.font = .systemFont(ofSize: 17)
+        editor.textColor = Palette.textColor
+        editor.insertionPointColor = Palette.actionColor
+        let paragraph = NSMutableParagraphStyle(); paragraph.lineSpacing = 7
+        editor.defaultParagraphStyle = paragraph
+        editor.textContainerInset = NSSize(width: 0, height: 2)
+        editor.textContainer?.lineFragmentPadding = 0
         editor.isVerticallyResizable = true; editor.isHorizontallyResizable = false
         editor.autoresizingMask = [.width]
         editor.textContainer?.widthTracksTextView = true
@@ -61,6 +64,11 @@ struct PetDraftInput: NSViewRepresentable {
                 window.makeFirstResponder(editor)
             }
         }
+    }
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
+        guard let editor = scroll.documentView as? DraftTextView else { return }
+        editor.delegate = nil; editor.focusChanged = nil; editor.submit = nil
+        if scroll.window?.firstResponder === editor { scroll.window?.makeFirstResponder(nil) }
     }
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: PetDraftInput

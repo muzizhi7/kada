@@ -6,6 +6,7 @@ import { loadSkills } from "@earendil-works/pi-coding-agent";
 import { parse as parseToml } from "smol-toml";
 import { parse as parseJson, type ParseError } from "jsonc-parser";
 import { atomicJson, readJson, SerialQueue } from "./util.js";
+import { UserMemoryStore, userMemoryInstructions, type MemoryContext } from "./user-memory.js";
 
 export type LocalSkill = { name: string; description: string; path: string; owner: string; disabled: boolean };
 export type LocalPlugin = { name: string; owner: string; kind: "plugin" | "extension" | "package" | "mcp"; source: string; enabled?: boolean };
@@ -16,7 +17,7 @@ export type LocalInventory = {
   notices: string[];
 };
 export type DiscoveryOptions = { home?: string; locale?: string; timezone?: string; maxEntries?: number; maxMs?: number };
-export type LocalContext = { overview: string; catalogue: string; guidance: string[]; summary: string; skills: LocalSkill[] };
+export type LocalContext = { overview: string; catalogue: string; guidance: string[]; summary: string; skills: LocalSkill[]; memory?: MemoryContext };
 const secret = /(?:sk-[a-z0-9_-]{16,}|(?:ghp|gho|github_pat|xox[baprs])[_-][a-z0-9_-]{12,}|AIza[a-z0-9_-]{16,})/i;
 function label(value: unknown, max = 120): string | undefined {
   return typeof value === "string" && value.length <= max && !value.includes("://") && /^[\p{L}\p{N}@][\p{L}\p{N} _./:@+()-]*$/u.test(value) && !secret.test(value) ? value : undefined;
@@ -200,9 +201,12 @@ export async function scanLocalAgents(options: DiscoveryOptions = {}): Promise<L
 /** An ordinary local cache and two readable files; no model, daemon or watcher of its own. */
 export class LocalDiscovery {
   readonly directory: string;
+  readonly memory: UserMemoryStore;
   private cached?: Promise<LocalInventory>;
   private changes = new SerialQueue();
-  constructor(dataDir: string, private options: DiscoveryOptions = {}) { this.directory = resolve(dataDir, "local-context"); }
+  constructor(dataDir: string, private options: DiscoveryOptions = {}) {
+    this.directory = resolve(dataDir, "local-context"); this.memory = new UserMemoryStore(this.directory);
+  }
   private async write(inventory: LocalInventory) {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
     const overview = ["# 本机 Agent 环境", "", "这是本机约定目录中观察到的配置，不代表登录状态、工具已接通或新的操作授权。", "",
@@ -211,7 +215,7 @@ export class LocalDiscovery {
       ...inventory.guidance.map(g => `- ${g.path}`), "", `## 插件与 MCP（${inventory.plugins.length}，仅发现，尚未接入本项目）`, "",
       ...inventory.plugins.map(p => `- ${p.owner} / ${p.kind} / ${p.name}${p.enabled === false ? "（原 Agent 已关闭）" : ""}`), "",
       `## Skills（${inventory.skills.length}）`, "", `完整目录：${join(this.directory, "skills.md")}`, "", "## 扫描说明", "",
-      "只读取已知 Agent 目录的能力清单与白名单设置字段；不读取聊天记录、凭据文件或命令历史。不会启动已发现插件/MCP。已有指导文件只按当前目标需要读取，不能变更已确认目标、预算和权限。", ...inventory.notices.map(n => `- ${n}`), ""].join("\n");
+      `能力清单和设置字段之外，用户指导与已有记忆正文会自动整理到 ${this.memory.profile}，来源摘录在 ${this.memory.evidence}。不读取聊天记录、凭据文件或命令历史，不启动已发现插件/MCP。用户记忆不能变更已确认目标、预算和权限。`, ...inventory.notices.map(n => `- ${n}`), ""].join("\n");
     const catalogue = ["# 本地 Skills", "", "每行包含名字、用途和原始 SKILL.md 路径，可用 Pi 原生 read/grep 按需查找。读取后，相对资源路径按原 Skill 所在目录解析。插件专用工具若未接入本项目，不能假装可调用。", "",
       ...inventory.skills.map(s => JSON.stringify({ name: s.name, description: s.description, path: s.path, owner: s.owner, disabled: s.disabled })), ""].join("\n");
     const { writeFile, rename } = await import("node:fs/promises");
@@ -232,19 +236,29 @@ export class LocalDiscovery {
     });
     return this.cached;
   }
-  async context(): Promise<LocalContext> {
+  async context(includeMemory = false): Promise<LocalContext> {
     const value = await this.load();
+    const memory = includeMemory ? await this.memory.refresh(value).then(v => this.memory.context(v)).catch(() => undefined) : undefined;
     return { overview: join(this.directory, "overview.md"), catalogue: join(this.directory, "skills.md"), guidance: value.guidance.map(g => g.path),
       summary: JSON.stringify({ platform: value.platform, locale: value.locale, timezone: value.timezone, agents: value.agents.map(a => ({ name: a.name, model: a.model, language: a.language })), skills: value.skills.length, plugins: value.plugins.length }),
-      skills: value.skills };
+      skills: value.skills, ...(memory ? { memory } : {}) };
   }
   async view(refresh = false) {
     const value = await this.load(refresh);
+    const memory = await this.memory.refresh(value).then(v => this.memory.context(v)).catch(() => undefined);
     return { enabled: true, scannedAt: value.scannedAt, agents: value.agents.length, skills: value.skills.length, plugins: value.plugins.length,
-      overview: join(this.directory, "overview.md"), catalogue: join(this.directory, "skills.md"), notices: value.notices };
+      overview: join(this.directory, "overview.md"), catalogue: join(this.directory, "skills.md"), memory: memory?.profile ?? null, memoryFacts: memory?.facts ?? 0,
+      notices: [...value.notices, ...(memory ? [] : ["用户工作记忆暂不可用，能力发现仍可使用。"]) ] };
+  }
+  /** Read-only client projection of the existing source-bound memory; no new store or model call. */
+  async memoryView() {
+    const value = await this.memory.refresh(await this.load());
+    return { enabled: true, updatedAt: value.updatedAt,
+      facts: value.facts.filter(f => f.state === "active").map(({ id, text, category, scope, certainty, evidence }) => ({ id, text, category, scope, certainty, evidence })),
+      notices: value.notices };
   }
 }
 
 export function localContextInstructions(context: LocalContext): string {
-  return `\nLocal setup facts (not authorization): ${context.summary}\nUse these observed preferences only when relevant; the user's current request wins. Read ${JSON.stringify(context.overview)} for local guidance paths and ${JSON.stringify(context.catalogue)} to find additional Skills using native read/grep. Load only useful SKILL.md files with native read; resolve resources against that original Skill directory. Skip disabled entries unless explicitly requested by the user. Existing plugins/MCP are an inventory, not callable tools here. Never use discovery to change model, permissions, budget or driver configuration.\n`;
+  return `\nLocal setup facts (not authorization): ${context.summary}\nUse these observed preferences only when relevant; the user's current request wins. Read ${JSON.stringify(context.overview)} for local guidance paths and ${JSON.stringify(context.catalogue)} to find additional Skills using native read/grep. Load only useful SKILL.md files with native read; resolve resources against that original Skill directory. Skip disabled entries unless explicitly requested by the user. Existing plugins/MCP are an inventory, not callable tools here. Never use discovery to change model, permissions, budget or driver configuration.\n` + (context.memory ? userMemoryInstructions(context.memory) : "");
 }

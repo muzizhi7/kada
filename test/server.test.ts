@@ -7,6 +7,32 @@ import { serve } from "../src/server.js";
 import { demoFixture, until } from "./helpers.js";
 import { hasTool, scriptedFixture } from "./helpers.js";
 import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
+import { createClient } from "../src/client.js";
+
+test("chat API returns a normal reply, rejects ambiguous flags and never creates a Goal", async () => {
+  const f = await scriptedFixture(() => fauxAssistantMessage("可以直接聊天。"));
+  const socket = createServer();
+  await new Promise<void>(resolve => socket.listen(0, "127.0.0.1", resolve));
+  const port = (socket.address() as { port: number }).port;
+  await new Promise<void>(resolve => socket.close(() => resolve()));
+  const settings = { ...f.settings, port };
+  const server = await serve(settings, { models: f.models });
+  const client = createClient(settings);
+  try {
+    await assert.rejects(client.request("/v1/tasks", "POST", { objective: "你好", mode: "other" }), /mode must be chat/);
+    await assert.rejects(client.request("/v1/tasks", "POST", { objective: "你好", mode: "chat", confirmed: true }), /cannot preconfirm/);
+    await assert.rejects(client.request("/v1/tasks", "POST", { objective: "你好", mode: "chat", acceptance: [{ type: "file_exists", path: "x" }] }), /explicit task/);
+    assert.equal((await server.runtime.list()).length, 0);
+    const task = await client.request<{ id: string }>("/v1/tasks", "POST", { objective: "你好", mode: "chat" });
+    await until(() => server.runtime.status(task.id), s => s.status === "answered");
+    const view = await client.request<{ interaction: string; reply: { text: string }; brief: unknown; delivery: unknown }>(`/v1/tasks/${task.id}/view`);
+    assert.equal(view.interaction, "chat");
+    assert.equal(view.reply.text, "可以直接聊天。");
+    assert.equal(view.brief, null);
+    assert.equal(view.delivery, null);
+    assert.equal((await server.runtime.status(task.id)).goal, undefined);
+  } finally { await server.close(); await f.close(); }
+});
 
 test("daemon requires its token, rejects cross-origin mutation, and reports missing model configuration", async () => {
   const f = await demoFixture();

@@ -160,12 +160,21 @@ test('a newly confirmed task discovers another Agent Skill, reads it natively an
 
 test('startup discovery works with no model and authenticated refresh is separate from task execution',async()=>{
   const f=await populated();const model=await scriptedFixture(()=>{throw new Error('Discovery must not call a model');});
+  await writeFile(join(f.home,'USER.md'),'偏好中文，交付时保留原始来源。');
   const socket=createServer();await new Promise<void>(r=>socket.listen(0,'127.0.0.1',r));const port=(socket.address()as any).port;await new Promise<void>(r=>socket.close(()=>r()));
   const server=await serve({...model.settings,port,model:undefined,discovery:true},{models:model.models,discovery:{home:f.home}});
   try{
     const token=(await readFile(join(model.directory,'token'),'utf8')).trim(),headers={Authorization:`Bearer ${token}`};
     assert.equal((await fetch(`http://127.0.0.1:${port}/v1/environment`)).status,401);
+    assert.equal((await fetch(`http://127.0.0.1:${port}/v1/environment/memory`)).status,401);
     const first=await(await fetch(`http://127.0.0.1:${port}/v1/environment`,{headers})).json()as any;assert(first.agents>0);assert(first.skills>0);
+    const memory=await(await fetch(`http://127.0.0.1:${port}/v1/environment/memory`,{headers})).json()as any;
+    assert.equal(memory.enabled,true);assert(memory.facts.some((x:any)=>x.text.includes('偏好中文')&&x.evidence.some((e:any)=>e.quote.includes('保留原始来源'))));
+    assert.equal(memory.sources,undefined,'the client projection does not expose full source documents');
+    await writeFile(join(f.home,'USER.md'),'偏好简短答复，保留可回查的依据。');
+    const changedMemory=await(await fetch(`http://127.0.0.1:${port}/v1/environment/memory`,{headers})).json()as any;
+    assert(!changedMemory.facts.some((x:any)=>x.text.includes('偏好中文')),'obsolete facts are not presented as current memory');
+    assert(changedMemory.facts.some((x:any)=>x.text.includes('偏好简短答复')));
     await f.skill('.agents/skills/refresh','refresh-skill');
     const rejected=await fetch(`http://127.0.0.1:${port}/v1/environment/refresh`,{method:'POST',headers:{...headers,Origin:'https://untrusted'}});assert.equal(rejected.status,403);
     const changed=await(await fetch(`http://127.0.0.1:${port}/v1/environment/refresh`,{method:'POST',headers})).json()as any;assert.equal(changed.skills,first.skills+1);
@@ -180,7 +189,8 @@ test('discovery can be disabled and old tasks do not acquire personal context on
   },{discovery:false});let reopened:LocalRuntime|undefined;
   try{
     const task=await f.runtime.create('给一个纯文本答案');await until(()=>f.runtime.status(task.id),s=>s.status==='completed');
-    assert.equal((await f.runtime.localSetup()).enabled,false);await f.runtime.close();
+    const disabled=await f.runtime.localSetup();assert.equal(disabled.enabled,false);assert.equal(disabled.memory,null);assert.equal(disabled.memoryFacts,0);
+    assert.deepEqual(await f.runtime.localMemory(),{enabled:false,updatedAt:null,facts:[],notices:[]});await f.runtime.close();
     reopened=new LocalRuntime({...f.settings,discovery:true},{models:f.models,discovery:{home:home.home}});await reopened.recover();
     assert.equal((await reopened.status(task.id)).discovery,undefined);
     await assert.rejects(stat(join(f.directory,'local-context')),{code:'ENOENT'});

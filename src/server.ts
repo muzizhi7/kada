@@ -47,19 +47,22 @@ export async function serve(config: Config, options?: RuntimeOptions) {
     try {
       if (!ready || !runtime) return send(503, { error: "Runtime is starting" });
       const url = new URL(req.url ?? "/", `http://127.0.0.1:${config.port}`);
-      if (url.pathname === "/health" && req.method === "GET") return send(200, { status: "ok", version: VERSION });
+      if (url.pathname === "/health" && req.method === "GET") return send(200, { status: "ok", version: VERSION, capabilities: ["ordinary-chat", "work-memory-view"] });
       const supplied = Buffer.from(req.headers.authorization?.replace(/^Bearer /, "") ?? "");
       const expected = Buffer.from(token);
       if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return send(401, { error: "Unauthorized" });
       if (req.headers.origin && req.headers.origin !== `http://127.0.0.1:${config.port}`) return send(403, { error: "Cross-origin requests are not allowed" });
       if (url.pathname === "/v1/environment" && req.method === "GET") return send(200, await runtime.localSetup());
+      if (url.pathname === "/v1/environment/memory" && req.method === "GET") return send(200, await runtime.localMemory());
       if (url.pathname === "/v1/environment/refresh" && req.method === "POST") return send(200, await runtime.localSetup(true));
       if (url.pathname === "/v1/tasks" && req.method === "GET") return send(200, await runtime.list());
       if (url.pathname === "/v1/tasks" && req.method === "POST") {
         const input = await body(req);
         if (typeof input.objective !== "string" || (input.workspace !== undefined && typeof input.workspace !== "string")) throw new Error("Expected objective and optional workspace strings");
         if (input.confirmed !== undefined && typeof input.confirmed !== "boolean") throw new Error("confirmed must be a boolean");
-        return send(201, await runtime.create(input.objective, input.workspace, input.acceptance, { prepare: input.confirmed !== true }));
+        if (input.mode !== undefined && input.mode !== "chat") throw new Error("mode must be chat when supplied");
+        if (input.mode === "chat" && input.confirmed === true) throw new Error("An ordinary conversation cannot preconfirm a task");
+        return send(201, await runtime.create(input.objective, input.workspace, input.acceptance, { prepare: input.confirmed !== true, chat: input.mode === "chat" }));
       }
       const match = /^\/v1\/tasks\/([a-f0-9-]{36})(?:\/(pause|resume|cancel|messages|confirm|view))?$/.exec(url.pathname);
       if (!match) return send(404, { error: "Not found" });

@@ -20,7 +20,7 @@ https://github.com/muzizhi7/kada
 
 ## 正在开发：更了解用户
 
-目前公开版可以发现本地 Agent 配置、Skills 和部分环境偏好。工作区正在验证更深入的用户工作记忆：读取已有的用户指导与 Agent 记忆，按来源整理工作偏好和项目线索，让新任务可以参考。它还未包含在当前公开版本中；我们会在完成验证和发布后再将其作为已发布能力介绍。
+目前公开版可以发现本地 Agent 配置、Skills 和部分环境偏好。主分支新增了更深入的用户工作记忆：读取已有的用户指导与 Agent 记忆，按来源整理工作偏好和项目线索，让新任务可以参考。它还未包含在 v0.8.0-alpha.1 下载包中；真实用户任务中的理解质量仍需验证。
 
 ## English introduction
 
@@ -28,7 +28,7 @@ Your work already has context: files, tools, Skills and preferences you have bui
 
 Kada is a goal-driven agent built on Pi. It discovers existing local agent configuration and Skills, then works with you to define the deliverables, scope and budget. Once you confirm, Kada uses local tools in the background, follows the task through its checks, and returns files alongside what it actually verified.
 
-The public release is an early source preview. It requires Node.js 24.7+ and your own model credentials. Hour-scale reliability and repeatable quality or cost gains over Pi are still being evaluated. A more detailed, source-bound user work memory is being tested in the working tree and is not part of the current release.
+The public release is an early source preview. It requires Node.js 24.7+ and your own model credentials. Hour-scale reliability and repeatable quality or cost gains over Pi are still being evaluated. A more detailed, source-bound user work memory is available on the main branch and is not part of the v0.8.0-alpha.1 release.
 
 https://github.com/muzizhi7/kada
 

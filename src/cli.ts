@@ -48,7 +48,7 @@ try {
       // Prefer the running daemon so its in-memory cache is refreshed too.
       const view = await client.healthy() ? await request<Awaited<ReturnType<InstanceType<typeof LocalDiscovery>["view"]>>>(args.values.refresh ? "/v1/environment/refresh" : "/v1/environment", args.values.refresh ? "POST" : "GET", args.values.refresh ? {} : undefined)
         : await new LocalDiscovery(config.dataDir).view(args.values.refresh);
-      console.log(`已发现 ${view.agents} 份 Agent/共享配置、${view.skills} 个 Skills、${view.plugins} 条插件/MCP 记录。\n本机概况：${view.overview}\nSkills 目录：${view.catalogue}`);
+      console.log(`已发现 ${view.agents} 份 Agent/共享配置、${view.skills} 个 Skills、${view.plugins} 条插件/MCP 记录。\n本机概况：${view.overview}\nSkills 目录：${view.catalogue}\n用户工作记忆：${view.memory ?? "暂不可用"}（${view.memoryFacts ?? 0} 条来源线索）`);
       for (const notice of view.notices) console.log(notice);
     }
   } else if (command === "demo") {

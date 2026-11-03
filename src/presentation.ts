@@ -19,7 +19,7 @@ export function briefText(status: TaskStatus): string {
 /** Describe the checks that actually ran, rather than equating a receipt with semantic completion. */
 export function verificationText(status: TaskStatus): string {
   const goal = status.goal;
-  if (!goal) return "验证范围：历史对话，没有目标验收记录。";
+  if (!goal) return status.interaction === "chat" ? "普通对话，无需目标验收。" : "验证范围：历史对话，没有目标验收记录。";
   const report = goal.mechanical;
   const lines: string[] = [];
   if (!report) lines.push("交付检查：尚未执行。");

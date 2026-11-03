@@ -18,7 +18,7 @@ struct PetBudget: Codable, Equatable {
         let minutes = max(1, Int(ceil(maxDurationMs / 60000)))
         return "最多 $\(Self.money(maxEstimatedCostUsd)) · \(minutes) 分钟"
     }
-    static func money(_ amount: Double) -> String { String(format: amount < 0.01 ? "%.4f" : "%.2f", amount) }
+    static func money(_ amount: Double) -> String { String(format: amount > 0 && amount < 0.01 ? "%.4f" : "%.2f", amount) }
 }
 
 struct PetVerification: Codable, Equatable { let command: String; let inputs: [String]; let outputs: [String] }
@@ -46,6 +46,7 @@ struct PetResumeBudget: Decodable, Equatable {
     let maxDurationMs: Double
     let maxTotalTokens: Int?
 }
+struct PetReply: Decodable, Equatable { let timestamp: Double; let text: String }
 struct PetTask: Decodable, Equatable {
     let id: String
     let objective: String
@@ -59,9 +60,12 @@ struct PetTask: Decodable, Equatable {
     let budget: PetUsage
     let resumeBudget: PetResumeBudget
     let delivery: PetDelivery?
+    var interaction: String?
+    var reply: PetReply?
 
-    enum Mode: String { case working, clarify, confirm, delivered, paused, budget, attention, cancelled }
+    enum Mode: String { case chat, working, clarify, confirm, delivered, paused, budget, attention, cancelled }
     var mode: Mode {
+        if interaction == "chat", ["running", "pending", "answered"].contains(status) { return .chat }
         switch status {
         case "running", "pending", "verifying": return .working
         case "clarifying", "waiting_user": return .clarify
@@ -74,7 +78,7 @@ struct PetTask: Decodable, Equatable {
         }
     }
     var attentionKey: String {
-        "\(id):\(mode.rawValue):\(brief?.revision ?? 0):\(question ?? ""):\(reason ?? "")"
+        "\(id):\(mode.rawValue):\(brief?.revision ?? 0):\(question ?? ""):\(reason ?? ""):\(reply?.timestamp ?? 0)"
     }
     var confirmation: [String: Any]? {
         guard mode == .confirm, !confirmed, let brief = brief, brief.questions.isEmpty,
@@ -85,8 +89,44 @@ struct PetTask: Decodable, Equatable {
 struct PetTaskItem: Decodable { let id: String; let objective: String; let status: String }
 struct PetCreated: Decodable { let id: String }
 struct PetOK: Decodable { let ok: Bool }
-struct PetHealth: Decodable { let status: String; let version: String }
-struct PetEnvironment: Decodable { let enabled: Bool; let agents: Int; let skills: Int; let plugins: Int; let overview: String? }
+struct PetHealth: Decodable { let status: String; let version: String; var capabilities: [String]? }
+struct PetEnvironment: Decodable { let enabled: Bool; let agents: Int; let skills: Int; let plugins: Int; let overview: String?; let memory: String? }
+struct PetMemoryCitation: Decodable, Equatable {
+    let path: String
+    let quote: String
+    let sha256: String
+    let observedAt: Double
+}
+struct PetMemoryFact: Decodable, Identifiable, Equatable {
+    let id: String
+    let text: String
+    let category: String
+    let scope: String
+    let certainty: String
+    let evidence: [PetMemoryCitation]
+    var sourceLabel: String {
+        let name = evidence.first.map { $0.path.hasPrefix("user:") ? "你的对话" : ($0.path as NSString).lastPathComponent } ?? "来源"
+        return name + " · " + (scope == "project" ? "项目线索" : "全局线索") + (certainty == "inferred" ? " · 待核实" : "")
+    }
+}
+struct PetMemoryView: Decodable {
+    let enabled: Bool
+    let updatedAt: Double?
+    let facts: [PetMemoryFact]
+    let notices: [String]
+}
+
+enum PetBriefEdit {
+    /// The existing Pi preparation session revises the brief; the client never edits or confirms a Goal itself.
+    static func message(_ text: String, cost: String, minutes: String) throws -> String {
+        guard let amount = Double(cost.replacingOccurrences(of: ",", with: ".")), amount.isFinite, amount > 0,
+              let duration = Int(minutes), duration >= 1 else {
+            throw PetError.message("费用上限必须大于 0，执行时限请填写至少 1 分钟的整数。")
+        }
+        return [text.trimmingCharacters(in: .whitespacesAndNewlines),
+            "请更新这次任务说明：总费用上限为 USD \(amount)（含准备消耗），执行时限为 \(duration) 分钟（从确认开始）。未提及的标准与范围保持原样，展示新版约定供我确认，确认前不要执行。"].filter { !$0.isEmpty }.joined(separator: "\n\n")
+    }
+}
 struct PetAPIError: Decodable { let error: String }
 
 enum PetError: LocalizedError {
@@ -127,7 +167,7 @@ final class PetAPI {
     }
     func checkHealth() async throws {
         let health: PetHealth = try await request("/health")
-        guard health.status == "ok", health.version == configuration.version else {
+        guard health.status == "ok", health.version == configuration.version, health.capabilities?.contains("ordinary-chat") == true else {
             throw PetError.message("后台版本已更新，请关闭旧后台后重新启动桌面伙伴。")
         }
     }

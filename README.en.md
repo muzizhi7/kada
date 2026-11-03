@@ -12,7 +12,7 @@ Kada is a goal-driven agent built on Pi. It takes your existing working environm
 
 Kada discovers existing local agent configuration and Skills, then works with you to clarify the deliverables, scope, checks and budget for a goal. Once confirmed, it uses local tools in the background, attempts to fix concrete check failures within the budget, and returns files with the checks actually performed. Use the terminal or the optional native macOS companion.
 
-**First public source preview: v0.8.0-alpha.1.** Bring your own cloud-model credentials. There is no standalone installer yet. The desktop companion compiles from source.
+**First public source preview: v0.8.0-alpha.1.** Bring your own cloud-model credentials. There is no standalone installer yet. The desktop companion compiles from source. Features marked “main branch” below are not included in that preview archive.
 
 ## What is included
 
@@ -20,7 +20,9 @@ Kada discovers existing local agent configuration and Skills, then works with yo
 - Background execution, pause/resume/cancel, budget tracking and reconnecting.
 - File/version-bound command evidence and bounded repair after concrete failures.
 - Native Pi Skills and optional discovery of existing local Agent/Skill/plugin metadata; discovered plugins are not automatically executed.
+- Proactive user work memory (main branch): bounded existing guidance and Agent memories become source-bound local context for new tasks, without an onboarding questionnaire. [Scope and data flow](docs/local-discovery.md)
 - A native macOS pixel companion with attachments, budget confirmation, customizable appearance and deliverable opening.
+- Native handoff UI (main branch): ordinary chat, inline source-bound memory, revised task briefs and quiet delivery in a collapsed status strip. [Implementation and verification](docs/verification-2026-11-03-handoff.md)
 
 Pi **1.4.0** provides model access, the agent loop, tools, sessions, compaction, persistence, recovery and child sessions. Kada adds task-specific goal continuity, budget boundaries, delivery checks and local clients.
 
@@ -49,6 +51,8 @@ npm run chat
 # Optional macOS client:
 npm run pet
 ```
+
+On the main branch: terminal and desktop sessions start as ordinary Pi conversations. Questions, memory discussions and closing remarks return direct answers without a Goal. Substantive work can propose a task brief in the same session; execution still requires confirmation. Restart the daemon and desktop client, then start a new conversation. Existing tasks keep their original behavior.
 
 Try a task on a work copy: “Organize incoming files into a handover folder and manifest. Preserve originals, hidden files and empty files. Propose checks for omissions, collisions and failures before starting. Maximum total model cost: USD0.25.”
 
@@ -81,7 +85,7 @@ npm audit --audit-level=moderate
 npm run test:pet # macOS interactive smoke, no cloud-model requests
 ```
 
-Local verification: 113 product tests; 59 native-core checks, 12 input-continuity checks and 6 customization checks. Consult Actions for the actual remote CI results. Paid model scripts require separate care and explicit execution; see [contributing](CONTRIBUTING.md).
+Local verification: 128 product tests; 74 native-core checks, 12 input-continuity checks and 6 customization checks. Consult Actions for the actual remote CI results. Paid model scripts require separate care and explicit execution; see [contributing](CONTRIBUTING.md).
 
 [Usage (中文)](docs/USAGE.md) · [Desktop (中文)](docs/desktop-pet.md) · [Tryout (中文)](docs/TRYOUT.md) · [Changelog](CHANGELOG.md) · [Support](SUPPORT.md) · [Security](SECURITY.md)
 

@@ -12,9 +12,13 @@ Kada runs locally and calls the cloud model you configure. Local storage does no
 
 ## 本机发现
 
-首次发现默认开启：扫描约定位置的 Agent 配置、Skills、插件/MCP 元数据和少量白名单偏好，生成本地缓存。新任务可获得短概况，并按需读取 Skill 内容。发现过程不调用模型、不导入凭据、不执行发现的插件；准备/执行任务时使用的相关概况和内容可能进入模型上下文。
+首次发现默认开启。主分支的 2026-11-03 增量会扫描约定位置的 Agent 配置、Skills、插件/MCP 元数据和少量白名单偏好，并自动读取约定的用户指导、USER.md 和已有 Agent 记忆，形成带来源的本地工作记忆；已发布 v0.8.0-alpha.1 仍只发现元数据。
+
+启动时不调用模型。新任务获得短概况和最多六项短记忆，按需读取完整证据、项目记忆与 Skill 内容；这些相关内容会进入所选供应商的模型上下文。当前任务会话可整理记忆和保存用户明确给出的纠正，费用计入原任务。原文来源不被改写，不导入凭据或执行发现的插件；常见秘密会省略，但该处理不能保证识别所有秘密格式。扫描不覆盖普通聊天、会话、命令历史或整个硬盘。
 
 在 harness.config.json 设置 `"discovery": false` 可关闭发现。用 `npm run discover` 查看，`npm run discover -- --refresh` 显式刷新。范围见 [local-discovery.md](local-discovery.md)。
+
+原生交接栏在本地带认证接口 `/v1/environment/memory` 查看活跃线索、已有引用与范围，不返回完整来源文档。打开记忆页不会请求线上模型、创建任务或写入新的用户事实；来源时效核对仍由已有派生缓存负责。
 
 ## 执行权限
 
@@ -29,4 +33,4 @@ Kada runs locally and calls the cloud model you configure. Local storage does no
 
 ## English summary
 
-Task context and tool-read material can be sent to the configured cloud provider. Web integrations send queries/URLs to their configured service. Local discovery is on by default and can be disabled; it lists local metadata without executing plugins or importing credentials. Task storage stays local, but shell tools have the OS user's permissions and are not sandboxed. Do not post raw sessions, .env, local API tokens or private task files in public issues.
+Task context and tool-read material can be sent to the configured cloud provider. Web integrations send queries/URLs to their configured service. Local discovery is on by default and can be disabled. The main branch also reads bounded, known user guidance and Agent memory files; short source-bound memories enter new tasks, and the existing Pi session can organize them. Startup makes no model call. Plugins are not executed by discovery. Task storage stays local, but shell tools have the OS user's permissions and are not sandboxed. Do not post raw sessions, .env, local API tokens or private task files in public issues.

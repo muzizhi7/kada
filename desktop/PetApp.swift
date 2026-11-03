@@ -3,14 +3,6 @@ import SwiftUI
 import Combine
 import UniformTypeIdentifiers
 
-private enum Palette {
-    static let ink = Color(red: 0.17, green: 0.20, blue: 0.32)
-    static let muted = Color(red: 0.44, green: 0.49, blue: 0.60)
-    static let blue = Color(red: 0.44, green: 0.25, blue: 0.75)
-    static let wash = Color(red: 0.96, green: 0.94, blue: 0.99)
-    static let line = Color(red: 0.86, green: 0.90, blue: 0.97)
-}
-
 @MainActor final class PetModel: ObservableObject {
     let api: PetAPI
     @Published var task: PetTask?
@@ -20,6 +12,13 @@ private enum Palette {
     @Published var error: String?
     @Published var editing = false
     @Published var resumePrompt = false
+    @Published var editCost = ""
+    @Published var editMinutes = ""
+    @Published var collapsed = false
+    @Published var showingMemory = false
+    @Published private(set) var memory: PetMemoryView?
+    @Published private(set) var memoryLoading = false
+    @Published private(set) var memoryError: String?
     @Published private(set) var appearance: PetAppearance
     @Published private(set) var customPicture: NSImage?
     let appearanceStore: PetAppearanceStore
@@ -31,16 +30,45 @@ private enum Palette {
     private var polling: Task<Void, Never>?
     private var failures = 0
     var mode: PetTask.Mode? { task?.mode ?? (selectedID == nil ? nil : .working) }
-    var panelHeight: CGFloat {
+    var taskTitle: String { task?.brief?.outcome ?? task?.objective.components(separatedBy: "\n").first ?? appearance.name }
+    var stateLabel: String {
+        if showingMemory { return "工作记忆" }
+        if resumePrompt { return "追加预算" }
         switch mode {
-        case nil: return attachments.isEmpty ? 364 : 440
-        case .confirm: return editing ? 618 : 554
-        case .clarify: return 490
-        case .delivered: return min(590, 326 + CGFloat(task?.delivery?.artifacts.count ?? 0) * 49)
-        case .working: return 242
-        case .paused, .budget, .attention: return 448
-        case .cancelled: return 268
+        case nil, .chat: return task?.status == "running" ? "正在回复" : "在听"
+        case .confirm: return editing ? "调整约定" : "确认交付"
+        case .clarify: return "补充资料"
+        case .working: return task?.confirmed == false ? "理清目标" : "正在工作"
+        case .delivered: return "已交付"
+        case .paused: return "已暂停"
+        case .budget: return "预算已到上限"
+        case .attention: return "需要你看一下"
+        case .cancelled: return "已取消"
         }
+    }
+    var dockStatus: String { mode == .delivered ? "文件已就绪" : mode == .working ? "正在推进任务" : task == nil ? "草稿已保留" : stateLabel }
+    var panelHeight: CGFloat {
+        if showingMemory {
+            let lines = memory?.facts.reduce(0) { total, fact in total + max(1, Int(ceil(Double(fact.text.count) / 25))) } ?? 3
+            return min(640, max(380, 220 + CGFloat(lines) * 25 + CGFloat(memory?.facts.count ?? 0) * 48))
+        }
+        let height: CGFloat
+        switch mode {
+        case nil: height = attachments.isEmpty ? 320 : 392
+        case .confirm: height = editing ? 520 : 580
+        case .clarify: height = 500
+        case .chat:
+            let lines = (task?.reply?.text ?? "正在回复…").components(separatedBy: "\n").reduce(0) { $0 + max(1, Int(ceil(Double($1.count) / 25))) }
+            height = min(620, max(320, 290 + CGFloat(lines) * 27)) + min(64, CGFloat(attachments.count) * 30)
+        case .delivered:
+            let count = task?.delivery?.artifacts.count ?? 0
+            height = count == 0 ? min(620, max(340, 290 + CGFloat(task?.delivery?.summary.count ?? 0) / 25 * 25)) : min(620, 290 + CGFloat(count) * 64)
+        case .working: height = 280
+        case .paused, .budget: height = resumePrompt ? 350 : 390
+        case .attention: height = 448
+        case .cancelled: height = 280
+        }
+        return height + (error == nil ? 0 : 64)
     }
     init(_ configuration: LaunchConfiguration, appearanceDirectory: URL) {
         api = PetAPI(configuration)
@@ -78,7 +106,7 @@ private enum Palette {
             if error?.hasPrefix("暂时联系不上") == true { error = nil }
             if value.mode != .working && value.attentionKey != lastAttention {
                 lastAttention = value.attentionKey
-                showBubble?(false)
+                if !collapsed || ![PetTask.Mode.delivered, .chat].contains(value.mode) { showBubble?(false) }
             }
         } catch {
             guard selectedID == id, generation == revision else { return }
@@ -92,7 +120,7 @@ private enum Palette {
     func select(_ id: String) async {
         generation += 1
         selectedID = id
-        task = nil; draft = ""; editing = false; error = nil; attachments = []; lastAttention = ""
+        task = nil; draft = ""; editing = false; error = nil; attachments = []; lastAttention = ""; resumePrompt = false; showingMemory = false
         UserDefaults.standard.set(id, forKey: api.configuration.defaultsKey)
         await refresh()
         showBubble?(true)
@@ -100,19 +128,23 @@ private enum Palette {
     func newGoal() {
         generation += 1; selectedID = nil; lastAttention = ""
         UserDefaults.standard.removeObject(forKey: api.configuration.defaultsKey)
-        task = nil; draft = ""; attachments = []; editing = false; error = nil
+        task = nil; draft = ""; attachments = []; editing = false; error = nil; resumePrompt = false; showingMemory = false
         showBubble?(true)
     }
     func submit() {
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !busy else { return }
+        var text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (!text.isEmpty || editing), !busy, !showingMemory else { return }
+        if editing {
+            do { text = try PetBriefEdit.message(text, cost: editCost, minutes: editMinutes) }
+            catch { self.error = error.localizedDescription; return }
+        }
         let objective = PetFiles.objective(text, attachments: attachments)
         guard objective.count <= 32000 else { error = "目标太长了，请缩短说明，或将详细资料作为附件添加。"; return }
         perform {
             if let id = self.selectedID {
-                let _: PetOK = try await self.api.request("/v1/tasks/\(id)/messages", method: "POST", body: ["message": text, "requestId": UUID().uuidString])
+                let _: PetOK = try await self.api.request("/v1/tasks/\(id)/messages", method: "POST", body: ["message": objective, "requestId": UUID().uuidString])
             } else {
-                let created: PetCreated = try await self.api.request("/v1/tasks", method: "POST", body: ["objective": objective, "confirmed": false])
+                let created: PetCreated = try await self.api.request("/v1/tasks", method: "POST", body: ["objective": objective, "mode": "chat"])
                 self.selectedID = created.id
                 UserDefaults.standard.set(created.id, forKey: self.api.configuration.defaultsKey)
             }
@@ -133,8 +165,33 @@ private enum Palette {
         guard let current = task, ["pause", "resume", "cancel"].contains(action) else { return }
         perform {
             let _: PetOK = try await self.api.request("/v1/tasks/\(current.id)/\(action)", method: "POST", body: [:])
+            if action == "resume" { self.resumePrompt = false }
             await self.refresh()
             if action == "resume", self.mode == .working { self.hideBubble?() }
+        }
+    }
+    func beginEdit() {
+        guard let brief = task?.brief else { return }
+        editCost = String(brief.budget.maxEstimatedCostUsd)
+        editMinutes = String(max(1, Int(brief.budget.maxDurationMs / 60000)))
+        editing = true
+    }
+    func openMemory() {
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        showingMemory = true
+        guard !memoryLoading else { return }
+        memoryLoading = true; memoryError = nil
+        Task {
+            defer { memoryLoading = false }
+            do { memory = try await api.request("/v1/environment/memory") }
+            catch { memoryError = "暂时无法读取工作记忆。可以重试，当前输入和任务会保留。" }
+        }
+    }
+    func retry() {
+        if !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || editing { submit(); return }
+        Task {
+            do { try await api.checkHealth(); error = nil; await refresh() }
+            catch { self.error = "暂时联系不上本地后台。当前输入和任务会保留，请稍后重试。" }
         }
     }
     private func perform(_ operation: @escaping @MainActor () async throws -> Void) {
@@ -178,227 +235,8 @@ private enum Palette {
     }
 }
 
-private struct PetButton: ButtonStyle {
-    var primary = true
-    @Environment(\.isEnabled) private var enabled
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 13, weight: .semibold, design: .rounded))
-            .frame(maxWidth: .infinity).padding(.vertical, 12)
-            .foregroundColor(primary ? .white : Palette.ink)
-            .background(primary ? Palette.blue.opacity(configuration.isPressed ? 0.82 : 1) : Palette.wash, in: RoundedRectangle(cornerRadius: 12))
-            .contentShape(RoundedRectangle(cornerRadius: 12))
-            .opacity(enabled ? 1 : 0.45)
-    }
-}
-
-private struct BubbleTail: Shape {
-    func path(in r: CGRect) -> Path {
-        Path { p in p.move(to: .zero); p.addLine(to: CGPoint(x: r.width, y: 0)); p.addQuadCurve(to: CGPoint(x: r.width * 0.7, y: r.height), control: CGPoint(x: r.width * 0.95, y: r.height * 0.4)); p.closeSubpath() }
-    }
-}
-
-private struct PetBubble: View {
-    @ObservedObject var model: PetModel
-    var close: () -> Void
-    var menu: () -> Void
-    @State private var focused = false
-    @State private var focusRequest = 0
-
-    var body: some View {
-        shell.preferredColorScheme(.light)
-            .onAppear { focusInput() }
-            .onChange(of: model.task?.status) { _ in focusInput() }
-            .alert("补充预算后继续？", isPresented: $model.resumePrompt) {
-                Button("先不继续", role: .cancel) {}
-                Button("补充并继续") { model.control("resume") }
-            } message: { Text(model.resumeMessage) }
-    }
-    private func focusInput() {
-        if model.mode == nil || model.mode == .clarify || model.mode == .attention || model.editing { focusRequest += 1 }
-    }
-    private var shell: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 15) {
-                HStack(spacing: 7) {
-                    Image(systemName: "square.stack.3d.up.fill").foregroundColor(Palette.blue).font(.system(size: 12))
-                    Text(model.appearance.name).font(.system(size: 12, weight: .medium)).foregroundColor(Palette.muted).lineLimit(1)
-                    Spacer()
-                    Button(action: menu) { Image(systemName: "ellipsis").frame(width: 26, height: 24) }.buttonStyle(.plain).help("最近任务与设置").accessibilityLabel("更多")
-                    Button(action: close) { Image(systemName: "xmark").font(.system(size: 11, weight: .medium)).frame(width: 22, height: 24) }.buttonStyle(.plain).help("收起气泡，后台继续执行").accessibilityLabel("收起气泡")
-                }.foregroundColor(Palette.muted)
-                if let error = model.error {
-                    Text(error).font(.system(size: 12)).foregroundColor(Color(red: 0.64, green: 0.28, blue: 0.25)).fixedSize(horizontal: false, vertical: true)
-                }
-                content
-            }
-            .padding(22).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 23))
-            .overlay(RoundedRectangle(cornerRadius: 23).strokeBorder(Palette.line.opacity(0.65), lineWidth: 1))
-            BubbleTail().fill(.white).frame(width: 24, height: 12).offset(x: 112, y: -1)
-        }
-        .padding(12).foregroundColor(Palette.ink)
-        .font(.system(size: 13, design: .rounded))
-        .compositingGroup()
-        .shadow(color: Color(red: 0.26, green: 0.32, blue: 0.49).opacity(0.16), radius: 10, y: 4)
-        .frame(width: 380, height: model.panelHeight)
-    }
-
-    @ViewBuilder private var content: some View {
-        switch model.mode {
-        case nil:
-            heading("今天，想做成什么？", "把目标交给我，做好了叫你。")
-            editor("比如：把这些资料整理成一份报告")
-            if !model.attachments.isEmpty {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(model.attachments, id: \.path) { url in
-                            HStack(spacing: 6) {
-                                Image(systemName: "paperclip").foregroundColor(Palette.blue)
-                                Text(url.lastPathComponent).lineLimit(1).help(url.path)
-                                Spacer()
-                                Button { model.attachments.removeAll { $0 == url } } label: { Image(systemName: "xmark.circle.fill").foregroundColor(Palette.muted) }.buttonStyle(.plain).accessibilityLabel("移除 \(url.lastPathComponent)")
-                            }.font(.system(size: 12))
-                        }
-                    }
-                }.frame(maxHeight: 64)
-            }
-            HStack {
-                Button { model.addFiles() } label: { Label("添加资料", systemImage: "paperclip") }.buttonStyle(.plain).foregroundColor(Palette.muted)
-                Spacer()
-                Text("开始前确认标准与预算").font(.system(size: 11)).foregroundColor(Palette.muted)
-            }
-            sendButton("交给你")
-        case .clarify:
-            heading("还差一点信息。", "一起说清楚，我就能继续。")
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    let questions = model.task?.brief?.questions ?? []
-                    if questions.isEmpty { Text(model.task?.question ?? "请补充影响结果的必要信息。") }
-                    else { ForEach(Array(questions.enumerated()), id: \.offset) { _, text in Text(text).fixedSize(horizontal: false, vertical: true) } }
-                }.frame(maxWidth: .infinity, alignment: .leading)
-            }
-            editor("补充你的要求…")
-            sendButton("补充说明")
-        case .confirm:
-            heading("这样交付，可以吗？", nil)
-            if let brief = model.task?.brief {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(brief.outcome).font(.system(size: 14, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-                        lines("交付给你", brief.deliverables)
-                        VStack(alignment: .leading, spacing: 7) {
-                            sectionLabel("做到这些")
-                            ForEach(Array(brief.criteria.enumerated()), id: \.offset) { _, criterion in
-                                Text("• \(criterion.text)〔\(criterion.method == "check" ? "命令核验" : "内容自检")〕").fixedSize(horizontal: false, vertical: true)
-                                if let verification = criterion.verification {
-                                    Text("核对方式：\(verification.command)\n保持原样：\(verification.inputs.joined(separator: "、"))\n核对产物：\(verification.outputs.joined(separator: "、"))")
-                                        .font(.system(size: 11)).foregroundColor(Palette.muted).fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                        }
-                        lines("资料与范围", brief.inputs + brief.scope)
-                        if !brief.assumptions.isEmpty { lines("约定与限制", brief.assumptions) }
-                    }.padding(.trailing, 5).frame(maxWidth: .infinity, alignment: .leading)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(brief.budget.label).font(.system(size: 13, weight: .semibold))
-                    Text("含准备阶段已用约 $\(PetBudget.money(model.task?.budget.estimatedCostUsd ?? 0))").font(.system(size: 11)).foregroundColor(Palette.muted)
-                    if let tokens = brief.budget.maxTotalTokens { Text("累计 token 上限 \(tokens)").font(.system(size: 11)).foregroundColor(Palette.muted) }
-                }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Palette.wash, in: RoundedRectangle(cornerRadius: 12))
-            }
-            if model.editing {
-                editor("想调整目标、标准或预算？")
-                sendButton("更新说明")
-            } else {
-                HStack(spacing: 9) {
-                    Button("调整一下") { model.editing = true; focusInput() }.buttonStyle(PetButton(primary: false))
-                    Button("确认，开始吧") { model.confirm() }.buttonStyle(PetButton()).disabled(model.busy || model.task?.confirmation == nil)
-                }
-            }
-        case .working:
-            heading(model.task?.confirmed == false ? "我先理清目标。" : "交给我，你先忙。", model.task?.confirmed == false ? "需要确认时再叫你。" : "完成后，我会把文件递给你。")
-            Spacer(minLength: 0)
-            HStack(spacing: 9) {
-                Button("暂停任务") { model.control("pause") }.buttonStyle(PetButton(primary: false)).disabled(model.busy)
-                Button("收起，等结果") { close() }.buttonStyle(PetButton())
-            }
-        case .delivered:
-            heading("做好啦，给你。", "文件都留在你的电脑上。")
-            ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(model.task?.delivery?.artifacts ?? [], id: \.self) { path in
-                        Button { model.openArtifact(path) } label: {
-                            HStack(spacing: 11) {
-                                Image(systemName: "doc.text").font(.system(size: 20)).foregroundColor(Palette.blue).frame(width: 28)
-                                Text((path as NSString).lastPathComponent).font(.system(size: 13, weight: .medium)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
-                                Image(systemName: "arrow.up.right").font(.system(size: 11)).foregroundColor(Palette.muted)
-                            }.padding(12).background(Palette.wash, in: RoundedRectangle(cornerRadius: 12))
-                        }.buttonStyle(.plain).help(path).accessibilityLabel("打开产物 \(path)")
-                    }
-                    DisclosureGroup("交付说明") {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(model.task?.delivery?.summary ?? "")
-                            Text(model.task?.delivery?.verification ?? "").foregroundColor(Palette.muted)
-                            ForEach(model.task?.delivery?.assumptions ?? [], id: \.self) { Text($0).foregroundColor(Palette.muted) }
-                        }.font(.system(size: 12)).padding(.top, 7).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
-                    }.font(.system(size: 12)).tint(Palette.muted).padding(.top, 5)
-                }
-            }
-            Text("这次估算费用 $\(PetBudget.money(model.task?.budget.estimatedCostUsd ?? 0))").font(.system(size: 11)).foregroundColor(Palette.muted)
-            HStack(spacing: 9) {
-                Button("打开文件夹") { model.openFolder() }.buttonStyle(PetButton(primary: false))
-                Button("新的目标") { model.newGoal() }.buttonStyle(PetButton())
-            }
-        case .paused, .budget, .attention:
-            heading(model.mode == .budget ? "需要定一下预算。" : model.mode == .paused ? "这件事暂停着。" : "这里需要你帮一下。", nil)
-            ScrollView { Text(model.task?.question ?? model.task?.reason ?? "请补充说明，或保留当前工作稍后继续。").frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
-            if model.mode == .attention {
-                editor("补充材料或调整要求…")
-                sendButton("发给你")
-            } else {
-                Text(model.resumeMessage).font(.system(size: 12)).foregroundColor(Palette.muted).fixedSize(horizontal: false, vertical: true)
-                Button("补充预算并继续…") { model.resumePrompt = true }.buttonStyle(PetButton()).disabled(model.busy)
-            }
-            Button("保留工作，开始新目标") { model.newGoal() }.buttonStyle(.plain).foregroundColor(Palette.muted).font(.system(size: 12)).frame(maxWidth: .infinity)
-        case .cancelled:
-            heading("这件事先放一放。", "已有文件保留在原来的位置。")
-            Spacer(minLength: 0)
-            HStack(spacing: 9) {
-                Button("查看文件") { model.openFolder() }.buttonStyle(PetButton(primary: false))
-                Button("新的目标") { model.newGoal() }.buttonStyle(PetButton())
-            }
-        }
-    }
-    private func heading(_ title: String, _ subtitle: String?) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(.system(size: 21, weight: .semibold, design: .rounded)).tracking(-0.4)
-            if let subtitle = subtitle { Text(subtitle).font(.system(size: 13)).foregroundColor(Palette.muted) }
-        }
-    }
-    private func sectionLabel(_ text: String) -> some View { Text(text).font(.system(size: 12, weight: .semibold)).foregroundColor(Palette.muted) }
-    private func lines(_ title: String, _ values: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            sectionLabel(title)
-            ForEach(Array(values.enumerated()), id: \.offset) { _, value in Text("• " + value).fixedSize(horizontal: false, vertical: true).textSelection(.enabled) }
-        }
-    }
-    private func editor(_ placeholder: String) -> some View {
-        ZStack(alignment: .topLeading) {
-            if model.draft.isEmpty { Text(placeholder).foregroundColor(Palette.muted).padding(.horizontal, 11).padding(.vertical, 12).allowsHitTesting(false) }
-            PetDraftInput(text: $model.draft, focused: $focused, label: placeholder, focusRequest: focusRequest, submit: { model.submit() }).padding(6)
-        }.frame(height: model.editing ? 74 : 88)
-            .background(Palette.wash.opacity(0.65), in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(focused ? Palette.blue.opacity(0.7) : Palette.line, lineWidth: 1))
-    }
-    private func sendButton(_ label: String) -> some View {
-        Button(model.busy ? "正在交给\(model.appearance.name)…" : label) { model.submit() }.buttonStyle(PetButton())
-            .disabled(model.busy || model.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            .keyboardShortcut(.return, modifiers: .command)
-    }
-}
-
 /** Original vector artwork. Only blink frames are timed; no assets or render engine. */
-private final class CompanionView: NSView {
+final class CompanionView: NSView {
     var press: (() -> Void)?
     var showMenu: (() -> Void)?
     var moved: (() -> Void)?
@@ -612,9 +450,14 @@ private final class CompanionView: NSView {
     }
 }
 
-private struct PetPreview: NSViewRepresentable {
+struct PetPreview: NSViewRepresentable {
     let appearance: PetAppearance
     var picture: NSImage?
+    var resting = false
+    var delivered = false
+    var press: (() -> Void)?
+    var moved: (() -> Void)?
+    var menu: (() -> Void)?
     func makeNSView(context: Context) -> CompanionView {
         let view = CompanionView(frame: NSRect(x: 0, y: 0, width: 160, height: 146))
         view.animates = false; view.showsName = false
@@ -623,6 +466,9 @@ private struct PetPreview: NSViewRepresentable {
     func updateNSView(_ view: CompanionView, context: Context) {
         if view.petAppearance != appearance { view.petAppearance = appearance }
         if view.customPicture !== picture { view.customPicture = picture }
+        if view.resting != resting { view.resting = resting }
+        if view.delivered != delivered { view.delivered = delivered }
+        view.press = press; view.moved = moved; view.showMenu = menu
     }
 }
 
@@ -664,7 +510,7 @@ private struct PetPersonalization: View {
                                 PetPreview(appearance: PetAppearance(name: editor.draft.name, look: look)).frame(width: 70, height: 63).allowsHitTesting(false)
                                 Text(look.title).font(.system(size: 12, weight: editor.draft.look == look ? .semibold : .regular))
                             }.frame(maxWidth: .infinity).padding(.vertical, 7)
-                                .background(editor.draft.look == look ? Palette.wash : Color.white, in: RoundedRectangle(cornerRadius: 14))
+                                .background(editor.draft.look == look ? Palette.wash : Palette.surface, in: RoundedRectangle(cornerRadius: 14))
                                 .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(editor.draft.look == look ? Palette.blue : Palette.line, lineWidth: editor.draft.look == look ? 2 : 1))
                         }.buttonStyle(.plain).accessibilityLabel("选择\(look.title)")
                     }
@@ -699,9 +545,9 @@ private struct PetPersonalization: View {
                 Button("保存", action: save).buttonStyle(PetButton()).keyboardShortcut(.return, modifiers: .command)
             }
         }.padding(22).frame(width: 380).foregroundColor(Palette.ink)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 23))
+            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 23))
             .overlay(RoundedRectangle(cornerRadius: 23).strokeBorder(Palette.line, lineWidth: 1))
-            .padding(12).preferredColorScheme(.light).onAppear { nameFocused = true }
+            .padding(12).onAppear { nameFocused = true }
     }
 }
 
@@ -711,6 +557,7 @@ private final class PetPanel: NSPanel {
         frameSetRequests += 1
         super.setFrame(frameRect, display: flag)
     }
+    override func animationResizeTime(_ newFrame: NSRect) -> TimeInterval { 0.26 }
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
@@ -719,6 +566,7 @@ private final class PetPanel: NSPanel {
     let model: PetModel
     private var pet: NSPanel!
     private var bubble: PetPanel!
+    private var dock: PetPanel!
     private var cat: CompanionView!
     private var statusItem: NSStatusItem!
     private var observations = Set<AnyCancellable>()
@@ -726,6 +574,8 @@ private final class PetPanel: NSPanel {
     private var personalization: NSPanel?
     private var appearanceEditor: PetAppearanceEditor?
     private var restoreBubbleAfterSettings = false
+    private var companionHidden = false
+    private var lastBubbleFrame: NSRect?
     init(_ configuration: LaunchConfiguration, appearanceDirectory: URL) { model = PetModel(configuration, appearanceDirectory: appearanceDirectory); super.init() }
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -738,11 +588,15 @@ private final class PetPanel: NSPanel {
             pet.setFrameOrigin(NSPointFromString(stored))
         } else { pet.setFrameOrigin(NSPoint(x: visible.maxX - 192, y: visible.minY + 22)) }
         keepOnScreen()
-        bubble = panel(NSSize(width: 380, height: model.panelHeight), interactive: true) as? PetPanel
+        bubble = panel(NSSize(width: 444, height: model.panelHeight), interactive: true) as? PetPanel
         bubble.title = "和桌面伙伴交谈"
         let hosting = NSHostingView(rootView: PetBubble(model: model, close: { [weak self] in self?.hide() }, menu: { [weak self] in self?.showMenu() }))
         hosting.sizingOptions = []
         bubble.contentView = hosting
+        dock = panel(NSSize(width: 382, height: 100), interactive: true) as? PetPanel
+        dock.title = "Kada 当前工作"
+        let dockHost = NSHostingView(rootView: PetDock(model: model, expand: { [weak self] in self?.show(focus: true) }, moved: { [weak self] in self?.dockMoved() }, menu: { [weak self] in self?.showMenu() }))
+        dockHost.sizingOptions = []; dock.contentView = dockHost
         model.showBubble = { [weak self] focus in self?.show(focus: focus) }
         model.hideBubble = { [weak self] in self?.hide() }
         model.objectWillChange.receive(on: RunLoop.main).sink { [weak self] in
@@ -778,29 +632,58 @@ private final class PetPanel: NSPanel {
     private func positionBubble() {
         guard bubble != nil else { return }
         let f = screen().visibleFrame
-        let size = NSSize(width: 380, height: model.panelHeight)
+        let size = NSSize(width: min(444, f.width - 8), height: min(model.panelHeight, f.height - 8))
         let x = min(max(pet.frame.midX - 302, f.minX + 4), f.maxX - size.width - 4)
         let y = min(pet.frame.maxY - 9, f.maxY - size.height - 4)
         let target = NSRect(x: x, y: max(f.minY + 4, y), width: size.width, height: size.height)
-        if !NSEqualRects(bubble.frame, target) { bubble.setFrame(target, display: true) }
+        if lastBubbleFrame != target {
+            lastBubbleFrame = target
+            if bubble.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+                // Do not invoke a final Swift override on animator()'s proxy as if it were PetPanel.
+                // AppKit's window resize entry point keeps the receiver a real window.
+                bubble.setFrame(target, display: true, animate: true)
+            } else { bubble.setFrame(target, display: true) }
+        }
+        let dockSize = NSSize(width: min(382, f.width - 8), height: 100)
+        let dockFrame = NSRect(x: min(max(pet.frame.maxX - dockSize.width, f.minX + 4), f.maxX - dockSize.width - 4),
+            y: min(max(pet.frame.minY + 24, f.minY + 4), f.maxY - dockSize.height - 4), width: dockSize.width, height: dockSize.height)
+        if !NSEqualRects(dock.frame, dockFrame) { dock.setFrame(dockFrame, display: true) }
+    }
+    private func dockMoved() {
+        pet.setFrameOrigin(NSPoint(x: dock.frame.maxX - pet.frame.width, y: dock.frame.minY - 24))
+        keepOnScreen(); positionBubble(); savePosition()
     }
     private func updateAppearance() {
         if cat.petAppearance != model.appearance { cat.petAppearance = model.appearance }
         if cat.customPicture !== model.customPicture { cat.customPicture = model.customPicture }
         pet.title = model.appearance.name
         bubble.title = "和\(model.appearance.name)交谈"
-        statusItem?.button?.toolTip = "\(model.appearance.name) · 桌面伙伴"
+        statusItem?.button?.toolTip = "\(model.appearance.name) · \(model.dockStatus)"
         let resting = model.mode == .working, delivered = model.mode == .delivered
         if cat.resting != resting { cat.resting = resting }
         if cat.delivered != delivered { cat.delivered = delivered }
         positionBubble()
+        if companionHidden || personalization?.isVisible == true {
+            pet.orderOut(nil); dock.orderOut(nil)
+        } else if bubble.isVisible {
+            pet.orderOut(nil); dock.orderOut(nil)
+        } else if model.collapsed && (model.task != nil || !model.draft.isEmpty) {
+            pet.orderOut(nil); dock.orderFrontRegardless()
+        } else {
+            dock.orderOut(nil); pet.orderFrontRegardless()
+        }
     }
     private func show(focus: Bool) {
         if personalization?.isVisible == true { return }
-        pet.orderFrontRegardless(); positionBubble(); bubble.orderFrontRegardless()
+        companionHidden = false
+        if model.collapsed { model.collapsed = false }
+        pet.orderOut(nil); dock.orderOut(nil); positionBubble(); bubble.orderFrontRegardless()
         if focus { NSApp.activate(ignoringOtherApps: true); bubble.makeKey() }
     }
-    private func hide() { bubble.orderOut(nil) }
+    private func hide() {
+        if !model.collapsed { model.collapsed = true }
+        bubble.orderOut(nil); updateAppearance()
+    }
     private func toggle() {
         if let settings = personalization { NSApp.activate(ignoringOtherApps: true); settings.makeKeyAndOrderFront(nil); return }
         if bubble.isVisible { hide() } else { show(focus: true) }
@@ -811,16 +694,17 @@ private final class PetPanel: NSPanel {
         add(menu, "和\(model.appearance.name)说话", #selector(openBubble))
         add(menu, "名字与造型…", #selector(openPersonalization))
         menu.addItem(.separator())
-        add(menu, "新的目标", #selector(newGoal))
+        add(menu, "新对话", #selector(newGoal))
         add(menu, "本机 Agent 与 Skills…", #selector(openEnvironment))
-        let recent = NSMenu(title: "最近任务")
-        let recentItem = NSMenuItem(title: "最近任务", action: nil, keyEquivalent: ""); recentItem.submenu = recent; menu.addItem(recentItem)
+        add(menu, "用户工作记忆…", #selector(openUserMemory))
+        let recent = NSMenu(title: "最近对话与任务")
+        let recentItem = NSMenuItem(title: "最近对话与任务", action: nil, keyEquivalent: ""); recentItem.submenu = recent; menu.addItem(recentItem)
         recent.addItem(withTitle: "正在读取…", action: nil, keyEquivalent: "")
         Task {
             do {
                 let tasks: [PetTaskItem] = try await model.api.request("/v1/tasks")
                 recent.removeAllItems()
-                if tasks.isEmpty { recent.addItem(withTitle: "还没有任务", action: nil, keyEquivalent: "") }
+                if tasks.isEmpty { recent.addItem(withTitle: "还没有对话", action: nil, keyEquivalent: "") }
                 for task in tasks.prefix(8) {
                     let prefix = task.status == "completed" ? "✓ " : ""
                     let item = NSMenuItem(title: prefix + String(task.objective.prefix(38)).replacingOccurrences(of: "\n", with: " "), action: #selector(attachTask(_:)), keyEquivalent: "")
@@ -843,7 +727,7 @@ private final class PetPanel: NSPanel {
     @objc private func openPersonalization() {
         if let existing = personalization { NSApp.activate(ignoringOtherApps: true); existing.makeKeyAndOrderFront(nil); return }
         restoreBubbleAfterSettings = bubble.isVisible
-        bubble.orderOut(nil)
+        bubble.orderOut(nil); dock.orderOut(nil)
         let editor = PetAppearanceEditor(model.appearance)
         appearanceEditor = editor
         let window = panel(NSSize(width: 404, height: 580), interactive: true)
@@ -856,8 +740,9 @@ private final class PetPanel: NSPanel {
         NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
     }
     private func closePersonalization() {
-        personalization?.orderOut(nil); personalization = nil; appearanceEditor = nil
+        personalization?.makeFirstResponder(nil); personalization?.orderOut(nil); personalization = nil; appearanceEditor = nil
         if restoreBubbleAfterSettings || model.mode != .working { show(focus: true) }
+        else { updateAppearance() }
     }
     private func savePersonalization() {
         guard let editor = appearanceEditor else { return }
@@ -879,7 +764,10 @@ private final class PetPanel: NSPanel {
             } catch { model.error = error.localizedDescription; show(focus: false) }
         }
     }
-    @objc private func hidePet() { pet.orderOut(nil); hide() }
+    @objc private func openUserMemory() {
+        model.openMemory(); show(focus: true)
+    }
+    @objc private func hidePet() { companionHidden = true; pet.orderOut(nil); bubble.orderOut(nil); dock.orderOut(nil) }
     @objc private func quit() { NSApp.terminate(nil) }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { show(focus: true); return true }
     func applicationWillTerminate(_ notification: Notification) { model.stop(); savePosition() }
@@ -895,7 +783,26 @@ private final class PetPanel: NSPanel {
             try snapshotKada(directory + "/08-kada-states.png")
             try snapshot(directory + "/00-kada-goal.png")
             let appearanceChecks = try await verifyPersonalization(directory)
+            model.draft = "保留这段未发送的中文草稿"
+            model.attachments = [URL(fileURLWithPath: overview)]
+            model.openMemory()
+            try await waitUntil { !self.model.memoryLoading && self.model.memory != nil }
+            guard model.memory?.facts.contains(where: { $0.text.contains("偏好简洁中文") && !$0.evidence.isEmpty }) == true else { throw PetError.message("The native memory page must receive source-bound facts") }
+            try snapshot(directory + "/10-memory.png")
+            model.showingMemory = false
+            guard model.draft == "保留这段未发送的中文草稿", model.attachments.count == 1 else { throw PetError.message("Memory navigation lost the draft or attachments") }
+            model.draft = ""; model.attachments = []
+            try await waitUntil { abs(self.bubble.frame.height - self.model.panelHeight) < 0.5 }
             var inputChecks = try await verifyInputContinuity()
+            model.draft = "你了解我吗"
+            model.submit()
+            try await waitUntil { self.model.mode == .chat && self.model.task?.reply?.text == "可以直接聊天。" && !self.model.busy }
+            guard bubble.isVisible, model.task?.brief == nil, model.task?.confirmation == nil else { throw PetError.message("A normal answer must be visible without task confirmation") }
+            model.draft = "不用了,退下吧"
+            model.submit()
+            try await waitUntil { self.model.mode == .chat && self.model.task?.reply?.text == "好的，有需要再叫我。" && !self.model.busy }
+            try snapshot(directory + "/09-chat.png")
+            model.newGoal()
             try snapshot(directory + "/01-goal.png")
             model.draft = "把资料整理成一份中文摘要，交付 report.md，保留原文件。"
             model.submit()
@@ -907,19 +814,45 @@ private final class PetPanel: NSPanel {
             model.submit()
             try await waitUntil { self.model.mode == .confirm && !self.model.busy }
             guard bubble.isVisible else { throw PetError.message("The exact brief must be visible before consent") }
+            model.beginEdit(); model.draft = "保留原文件和已有标准。"; model.editCost = "0"
+            model.submit()
+            guard model.error != nil, model.editing, !model.draft.isEmpty, model.task?.confirmation != nil else { throw PetError.message("Invalid edits must retain input without confirming or changing the current brief") }
+            model.error = nil; model.editCost = "0.30"; model.editMinutes = "2"
+            try await waitUntil { abs(self.bubble.frame.height - self.model.panelHeight) < 0.5 }
+            try snapshot(directory + "/11-edit.png")
+            model.submit()
+            try await waitUntil { self.model.mode == .confirm && self.model.task?.brief?.revision == 3 && !self.model.busy }
+            guard model.task?.brief?.budget.maxEstimatedCostUsd == 0.30, model.task?.confirmed == false else { throw PetError.message("Budget changes must produce a newly displayed, unconfirmed brief") }
             try snapshot(directory + "/03-confirm.png")
+            bubble.appearance = NSAppearance(named: .darkAqua)
+            try await Task.sleep(nanoseconds: 150_000_000)
+            try snapshot(directory + "/12-dark.png")
+            bubble.appearance = NSAppearance(named: .aqua)
+            let narrow = NSHostingView(rootView: PetBubble(model: model, close: {}, menu: {}))
+            narrow.sizingOptions = []; narrow.frame = NSRect(x: 0, y: 0, width: 344, height: model.panelHeight)
+            try snapshotView(narrow, path: directory + "/13-narrow.png")
             guard model.task?.confirmation != nil else { throw PetError.message("Missing native confirmation payload") }
             model.confirm()
             try await waitUntil { self.model.mode == .working && !self.model.busy }
             guard !bubble.isVisible else { throw PetError.message("The bubble must collapse during autonomous execution") }
             try snapshot(directory + "/04-quiet.png", includeBubble: false)
+            model.control("pause")
+            try await waitUntil { self.model.mode == .paused && !self.model.busy }
+            model.resumePrompt = true
+            try await waitUntil { abs(self.bubble.frame.height - self.model.panelHeight) < 0.5 }
+            let stillPaused = try await model.api.task(model.task!.id)
+            guard stillPaused.mode == .paused else { throw PetError.message("Opening the budget prompt must not resume a task") }
+            try snapshot(directory + "/14-resume.png")
+            model.control("resume")
+            try await waitUntil { self.model.mode == .working && !self.model.busy }
             try await waitUntil { self.model.mode == .delivered && !self.model.busy }
-            guard bubble.isVisible else { throw PetError.message("Delivery must be shown automatically") }
+            guard !bubble.isVisible, dock.isVisible else { throw PetError.message("A collapsed task must deliver quietly in its status strip") }
+            try snapshot(directory + "/15-quiet-delivery.png", includeBubble: false)
             guard let task = model.task, let file = task.delivery?.artifacts.first else { throw PetError.message("Missing delivery") }
             let url = try PetFiles.artifact(file, workspace: task.workspace)
             guard try String(contentsOf: url).contains("来源") else { throw PetError.message("Missing source in actual deliverable") }
             try snapshot(directory + "/05-delivery.png")
-            let result: [String: Any] = ["ok": true, "pid": ProcessInfo.processInfo.processIdentifier, "taskId": task.id, "confirmed": task.confirmed, "artifacts": task.delivery?.artifacts ?? [], "screenshots": 9, "quietWhileWorking": true, "nativeInputChecks": inputChecks, "appearanceChecks": appearanceChecks, "petName": model.appearance.name, "environmentReachable": true]
+            let result: [String: Any] = ["ok": true, "pid": ProcessInfo.processInfo.processIdentifier, "taskId": task.id, "confirmed": task.confirmed, "artifacts": task.delivery?.artifacts ?? [], "screenshots": 16, "normalChat": true, "quietWhileWorking": true, "quietDelivery": true, "memoryPreservedDraft": true, "nativeInputChecks": inputChecks, "appearanceChecks": appearanceChecks, "petName": model.appearance.name, "environmentReachable": true]
             let data = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: URL(fileURLWithPath: directory + "/result.json"))
         } catch {
@@ -1041,18 +974,15 @@ private final class PetPanel: NSPanel {
     }
     private func snapshot(_ path: String, includeBubble: Bool = true) throws {
         if includeBubble { show(focus: false) }
-        bubble.contentView?.layoutSubtreeIfNeeded(); cat.displayIfNeeded()
-        let image = NSImage(size: NSSize(width: 410, height: bubble.frame.height + 150))
+        let view: NSView = includeBubble ? bubble.contentView! : dock.isVisible ? dock.contentView! : cat
+        view.layoutSubtreeIfNeeded(); view.displayIfNeeded()
+        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw PetError.message("Cannot render native view") }
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        let image = NSImage(size: NSSize(width: view.bounds.width + 24, height: view.bounds.height + 24))
         image.lockFocus()
-        NSColor(calibratedRed: 0.91, green: 0.94, blue: 0.98, alpha: 1).setFill()
+        NSColor(calibratedRed: 0.97, green: 0.96, blue: 0.98, alpha: 1).setFill()
         NSRect(origin: .zero, size: image.size).fill()
-        var views: [(NSView, NSPoint)] = [(cat as NSView, NSPoint(x: 230, y: 4))]
-        if includeBubble { views.insert((bubble.contentView!, NSPoint(x: 14, y: 144)), at: 0) }
-        for (view, point) in views {
-            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { throw PetError.message("Cannot render native view") }
-            view.cacheDisplay(in: view.bounds, to: bitmap)
-            NSImage(cgImage: bitmap.cgImage!, size: view.bounds.size).draw(at: point, from: .zero, operation: .sourceOver, fraction: 1)
-        }
+        NSImage(cgImage: bitmap.cgImage!, size: view.bounds.size).draw(at: NSPoint(x: 12, y: 12), from: .zero, operation: .sourceOver, fraction: 1)
         image.unlockFocus()
         guard let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff), let data = bitmap.representation(using: .png, properties: [:]) else { throw PetError.message("Cannot encode native snapshot") }
         try data.write(to: URL(fileURLWithPath: path))

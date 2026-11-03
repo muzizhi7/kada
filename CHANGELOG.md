@@ -1,5 +1,14 @@
 # Changelog
 
+## Main branch — 2026-11-03
+
+- Read bounded local user guidance and prior agent memory into source-linked work context for new tasks, with explicit corrections and stale-source handling.
+- Keep ordinary conversation in the existing Pi session; introduce a task brief only for work requiring delivery and confirmation.
+- Add the native handoff bar, source-aware memory view, revised task and budget confirmation, quiet execution, and deliverable opening.
+- Preserve existing tasks, settings and credentials. Real computer-use and automated learning remain off by default.
+
+These changes are available in the main branch and are not included in the v0.8.0-alpha.1 release archive. Hour-scale reliability and quality/cost improvements remain unproven.
+
 ## v0.8.0-alpha.1 — 2026-11-02
 
 First public source preview. Runtime/package compatibility version remains 0.8.0; the GitHub release is explicitly marked prerelease.

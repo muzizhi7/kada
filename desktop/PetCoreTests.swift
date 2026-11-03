@@ -21,6 +21,18 @@ import AppKit
             object["status"] = state
             try expect(try decode(object).mode == .attention, "\(state) is not a successful delivery")
         }
+        object["interaction"] = "chat"
+        object["brief"] = NSNull(); object["briefDigest"] = NSNull()
+        object["reply"] = ["timestamp": 1234, "text": "你好，可以直接聊。"]
+        for state in ["running", "pending", "answered"] {
+            object["status"] = state
+            try expect(try decode(object).mode == .chat, "\(state) ordinary chat stays in the conversation panel")
+        }
+        let chat = try decode(object)
+        try expect(chat.reply?.text == "你好，可以直接聊。" && chat.confirmation == nil, "normal answer is visible without a brief or confirmation")
+        object["reply"] = ["timestamp": 2345, "text": "好的，有需要再叫我。"]
+        try expect(try decode(object).attentionKey != chat.attentionKey, "a new chat reply can notify even with unchanged status")
+        object.removeValue(forKey: "interaction"); object.removeValue(forKey: "reply")
         object["status"] = "completed"
         try expect(try decode(object).mode == .attention, "completed without actual delivery is not presented as success")
         object["delivery"] = ["summary": "保存了摘要", "artifacts": ["report.md"], "verification": "文件与内容自检", "assumptions": []]
@@ -59,6 +71,19 @@ import AppKit
         try expect(goal.contains(report.path) && goal.contains("保留原文件"), "attachments preserve explicit source paths")
         try expect(PetFiles.objective("整理资料", attachments: []) == "整理资料", "no attachment boilerplate")
         try expect(PetBudget(maxEstimatedCostUsd: 0.25, maxDurationMs: 60000).label.contains("$0.25"), "budget visible to the user")
+        let revision = try PetBriefEdit.message("保留原件", cost: "0.30", minutes: "2")
+        try expect(revision.contains("USD 0.3") && revision.contains("2 分钟") && revision.contains("确认前不要执行"), "budget edits request a new brief rather than preconfirming execution")
+        for pair in [("0", "2"), ("nan", "2"), ("inf", "2"), ("0.3", "0"), ("0.3", "1.5")] {
+            var refused = false
+            do { _ = try PetBriefEdit.message("", cost: pair.0, minutes: pair.1) } catch { refused = true }
+            try expect(refused, "invalid visible budget fields cannot be submitted")
+        }
+        let memoryJSON = """
+        {"enabled":true,"updatedAt":1234,"facts":[{"id":"f1","text":"偏好中文","category":"preferences","scope":"project","certainty":"inferred","evidence":[{"path":"/tmp/USER.md","quote":"偏好中文","sha256":"hash","observedAt":1234}]}],"notices":[]}
+        """
+        let memory = try JSONDecoder().decode(PetMemoryView.self, from: Data(memoryJSON.utf8))
+        try expect(memory.facts.first?.sourceLabel == "USER.md · 项目线索 · 待核实", "memory UI preserves project scope and uncertainty")
+        try expect(memory.facts.first?.evidence.first?.quote == "偏好中文", "memory UI receives the actual quoted evidence")
 
         let profileDirectory = directory.appendingPathComponent("appearance", isDirectory: true)
         let store = PetAppearanceStore(directory: profileDirectory)
@@ -118,6 +143,9 @@ import AppKit
         try expect(store.load() == .original, "damaged preferences never prevent the pet from starting")
         let environment = try JSONDecoder().decode(PetEnvironment.self, from: Data("{\"enabled\":true,\"agents\":3,\"skills\":12,\"plugins\":2,\"overview\":\"/tmp/local-overview.md\"}".utf8))
         try expect(environment.enabled && environment.agents == 3 && environment.skills == 12 && environment.plugins == 2, "local inventory counts decode")
+        try expect(environment.memory == nil, "older daemons remain decodable without user memory")
+        let memoryEnvironment = try JSONDecoder().decode(PetEnvironment.self, from: Data("{\"enabled\":true,\"agents\":1,\"skills\":0,\"plugins\":0,\"overview\":null,\"memory\":\"/tmp/user-memory.md\"}".utf8))
+        try expect(memoryEnvironment.memory == "/tmp/user-memory.md", "source-bound user memory can be opened independently of the capability inventory")
         try expect(environment.overview == "/tmp/local-overview.md", "environment overview path remains local")
         let disabledEnvironment = try JSONDecoder().decode(PetEnvironment.self, from: Data("{\"enabled\":false,\"agents\":0,\"skills\":0,\"plugins\":0,\"overview\":null}".utf8))
         try expect(!disabledEnvironment.enabled && disabledEnvironment.overview == nil, "disabled discovery needs no report path")
