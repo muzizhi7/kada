@@ -2,7 +2,7 @@
 
 [![checks](https://github.com/muzizhi7/kada/actions/workflows/ci.yml/badge.svg)](https://github.com/muzizhi7/kada/actions/workflows/ci.yml)
 
-**你的工作有上下文，也有想达成的目标。Kada 从这里开始。**
+**了解你的工作，让目标持续推进。**
 
 Kada 是基于 Pi 的目标驱动 Agent。它了解你已有的工作环境，帮你把目标变成清楚的交付，然后在本机持续推进。
 
