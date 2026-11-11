@@ -131,6 +131,42 @@ test('explicit corrections supersede old context durably and replay does not dup
   } finally { await f.close(); }
 });
 
+test('organized portrait precedes source excerpts and the desktop view preserves their origin', async () => {
+  const f = await fixture();
+  try {
+    await f.put('.codex/memories/memory_summary.md', '用户经常要求简洁的中文交付。');
+    await f.discovery.view();
+    const source = (await f.read()).sources.find(s => s.path.endsWith('memory_summary.md'))!;
+    await remember(f, [fact(source.id, '用户经常要求简洁的中文交付。', { text: '偏好简洁、可直接复用的中文交付。', certainty: 'inferred', domain: 'general' })]);
+    const view = await f.discovery.memoryView();
+    assert.equal(view.profile, join(f.data, 'local-context/user-memory.md'));
+    assert(view.facts.some(x => x.origin === 'organized' && x.text.includes('可直接复用')));
+    assert(view.facts.some(x => x.origin === 'imported' && x.text.includes('经常要求')));
+    const document = await readFile(view.profile, 'utf8');
+    assert(document.indexOf('偏好简洁、可直接复用') < document.indexOf('## 来源线索'));
+    assert(document.indexOf('用户经常要求') > document.indexOf('## 来源线索'));
+  } finally { await f.close(); }
+});
+
+test('separate memory writers preserve concurrent updates and repeated calls within a task', async () => {
+  const f = await fixture();
+  try {
+    await f.discovery.view();
+    const other = { ...f, discovery: new LocalDiscovery(f.data, { home: f.home }) };
+    const first = '以后请用中文回答。', second = '交付时请附上核验说明。', third = '个人旅行喜欢安静的地方。';
+    await Promise.all([
+      remember(f, [fact('user', first)], [first], 'shared-task'),
+      remember(other, [fact('user', second)], [second], 'another-task'),
+    ]);
+    const input = fact('user', third, { category: 'life', domain: 'life' });
+    await remember(f, [input], [third], 'shared-task');
+    await remember(f, [input], [third], 'shared-task');
+    const organized = (await f.read()).facts.filter(x => x.origin === 'organized' && x.state === 'active');
+    assert.equal(organized.length, 3);
+    for (const text of [first, second, third]) assert(organized.some(x => x.text === text), text);
+  } finally { await f.close(); }
+});
+
 test('corrupt nested derived memory rebuilds without altering user sources', async () => {
   const f = await fixture();
   try {
@@ -198,4 +234,117 @@ test('metadata-only historical discovery tasks keep their context and tools on r
     await reopened.followUp(task.id, '把答复写得简短。'); await until(() => reopened!.status(task.id), x => x.goal?.brief?.revision === 2);
     assert.equal((await reopened.metadata(task.id)).userMemory, undefined);
   } finally { await reopened?.close(); await f.close(); await home.close(); }
+});
+
+test('large Codex memory keeps all useful excerpts and versioned redacted snapshots', async () => {
+  const f = await fixture();
+  try {
+    const sourcePath = '.codex/memories/MEMORY.md';
+    const original = '# 工作\n\n' + Array.from({ length: 240 }, (_, i) => `工作条目 ${i}：${'长期事实与上下文'.repeat(40)}。`).join('\n\n') + '\n\napi_key=SECRET_SNAPSHOT_SENTINEL\n';
+    assert(Buffer.byteLength(original) > 65536);
+    await f.put(sourcePath, original); await f.discovery.view();
+    let value = await f.read(); const source = value.sources.find(s => s.path.endsWith(sourcePath))!;
+    assert(source); assert(value.facts.some(x => x.text.includes('工作条目 239')));
+    assert.equal(source.sha256, createHash('sha256').update(original).digest('hex'));
+    const oldSnapshot = source.snapshot!; const snapshot = await readFile(oldSnapshot, 'utf8');
+    assert(snapshot.includes('工作条目 239')); assert(!snapshot.includes('SECRET_SNAPSHOT_SENTINEL'));
+    const oldOriginal = source.original!;
+    assert.equal(await readFile(oldOriginal, 'utf8'), original, 'original source bytes are retained separately from redacted recall');
+    await f.put(sourcePath, '新版长期记忆。'); await f.discovery.view(); value = await f.read();
+    assert(value.facts.some(x => x.text.includes('工作条目 239') && x.state === 'stale'));
+    assert((await readFile(oldSnapshot, 'utf8')).includes('工作条目 239'));
+    assert.equal(await readFile(oldOriginal, 'utf8'), original, 'source updates do not overwrite the original version');
+    assert.notEqual(value.sources.find(s => s.path.endsWith(sourcePath))!.snapshot, oldSnapshot);
+    if (process.platform !== 'win32') for (const file of [oldSnapshot, oldOriginal]) assert.equal((await stat(file)).mode & 0o777, 0o600);
+  } finally { await f.close(); }
+});
+
+test('work, life and project context are isolated and explicit exports retain provenance', async () => {
+  const f = await fixture();
+  try {
+    const a = join(f.home, 'alpha'), b = join(f.home, 'beta');
+    await mkdir(join(a, '.git'), { recursive: true }); await mkdir(join(b, '.git'), { recursive: true });
+    await f.put('alpha/.cursor/rules/project.mdc', '# 项目\n\nALPHA_ONLY build rule');
+    await f.put('beta/CODEBUDDY.md', '# 项目\n\nBETA_ONLY build rule');
+    await f.put('.openclaw/workspace/USER.md', '# 个人生活\n\nLIFE_ONLY 喜欢旅行去海边。');
+    await f.put('.codebuddy/CODEBUDDY.md', '# 工作\n\nWORK_ONLY 负责数据分析。');
+    await f.put('chatgpt-export.md', '# 用户记忆\n\nEXPORTED_LIFE 喜欢安静旅行。');
+    await mkdir(join(f.data, 'local-context'), { recursive: true });
+    await writeFile(join(f.data, 'local-context/memory-imports.json'), JSON.stringify([{ path: join(f.home, 'chatgpt-export.md'), provider: 'chatgpt', scope: 'global', domain: 'life' }]));
+    const aContext = await f.discovery.context(true, a, '构建 ALPHA_ONLY 项目');
+    assert(aContext.memory!.summary.includes('ALPHA_ONLY')); assert(!aContext.memory!.summary.includes('LIFE_ONLY'));
+    const bContext = await f.discovery.context(true, b, '构建 BETA_ONLY 项目');
+    assert(bContext.memory!.summary.includes('BETA_ONLY')); assert(!bContext.memory!.summary.includes('ALPHA_ONLY'));
+    assert(!bContext.memory!.summary.includes('EXPORTED_LIFE'));
+    const lifeContext = await f.discovery.context(true, b, '旅行 EXPORTED_LIFE');
+    assert(lifeContext.memory!.summary.includes('EXPORTED_LIFE')); assert(!lifeContext.memory!.summary.includes('WORK_ONLY'));
+    const value = await f.read();
+    const exported = value.sources.find(s => s.provider === 'chatgpt')!;
+    assert.equal(exported.domain, 'life'); assert.equal(exported.path, join(f.home, 'chatgpt-export.md'));
+    assert(value.facts.some(x => x.text.includes('ALPHA_ONLY') && x.project === a));
+    assert(value.facts.some(x => x.text.includes('BETA_ONLY') && x.project === b));
+    const ext = f.discovery.memory.extension('task-1', f.home, () => f.discovery.load(), undefined, b);
+    const search = ext.tools!.find(t => t.name === 'user_memory_search')!;
+    const result = await (search.execute as any)({ query: 'ALPHA_ONLY BETA_ONLY build', domain: 'work' }, {}, {});
+    const text = JSON.stringify(result); assert(text.includes('BETA_ONLY')); assert(!text.includes('ALPHA_ONLY')); assert(!text.includes('LIFE_ONLY'));
+  } finally { await f.close(); }
+});
+
+test('Claude topic files only match the corresponding encoded workspace and project memories cannot cross projects', async () => {
+  const f = await fixture();
+  try {
+    const a = join(f.home, 'alpha'), b = join(f.home, 'beta'); await mkdir(a); await mkdir(b);
+    const encoded = a.replace(/[^a-zA-Z0-9]/g, '-');
+    await f.put(`.claude/projects/${encoded}/memory/topic.md`, '# 项目\n\nCLAUDE_ALPHA 特定构建规则。');
+    const matching = await f.discovery.context(true, a, 'CLAUDE_ALPHA 构建');
+    assert(matching.memory!.summary.includes('CLAUDE_ALPHA'));
+    const other = await f.discovery.context(true, b, 'CLAUDE_ALPHA 构建');
+    assert(!other.memory!.summary.includes('CLAUDE_ALPHA'));
+    const source = (await f.read()).sources.find(s => s.path.endsWith('/topic.md'))!;
+    const ext = f.discovery.memory.extension('task-1', f.home, () => f.discovery.load(), undefined, b);
+    const api = { taskId: 'other-project', commit: async (fn: any) => fn({ doc: async () => ({ objective: '', userMessages: [] }) }) };
+    await assert.rejects((ext.tools![0]!.execute as any)({ facts: [fact(source.id, 'CLAUDE_ALPHA 特定构建规则。', { scope: 'project', certainty: 'inferred' })] }, api, {}), /different project/);
+  } finally { await f.close(); }
+});
+
+test('CodeBuddy global Auto Memory is read and unverified project IDs require a registered workspace', async () => {
+  const f = await fixture();
+  try {
+    const a = join(f.home, 'alpha'), b = join(f.home, 'beta'); await mkdir(a); await mkdir(b);
+    const global = '.codebuddy/memories/global/preferences.md';
+    const project = '.codebuddy/memories/opaque-project-id/MEMORY.md';
+    await f.put(global, '# 偏好\n\nCODEBUDDY_GLOBAL 请用中文回复。');
+    await f.put(project, '# 项目\n\nCODEBUDDY_PROJECT 专属构建规则。');
+    await f.discovery.view();
+    let value = await f.read();
+    const globalSource = value.sources.find(s => s.path === join(f.home, global))!;
+    assert.equal(globalSource.provider, 'codebuddy'); assert.equal(globalSource.scope, 'global');
+    assert.equal(await readFile(globalSource.original!, 'utf8'), '# 偏好\n\nCODEBUDDY_GLOBAL 请用中文回复。');
+    assert(!value.sources.some(s => s.path === join(f.home, project)));
+    assert(value.notices.some(n => n.includes('CodeBuddy project Auto Memory')));
+    await writeFile(join(f.data, 'local-context/memory-imports.json'), JSON.stringify([{ path: join(f.home, project), provider: 'codebuddy', scope: 'project', domain: 'work', project: a }]));
+    const matching = await f.discovery.context(true, a, 'CODEBUDDY_PROJECT 构建');
+    assert(matching.memory!.summary.includes('CODEBUDDY_PROJECT'));
+    const other = await f.discovery.context(true, b, 'CODEBUDDY_PROJECT 构建');
+    assert(!other.memory!.summary.includes('CODEBUDDY_PROJECT'));
+    value = await f.read();
+    const projectSource = value.sources.find(s => s.path === join(f.home, project))!;
+    assert.equal(projectSource.scope, 'project'); assert.equal(projectSource.project, a);
+  } finally { await f.close(); }
+});
+
+test('identical recall is deduplicated without losing separate source citations', async () => {
+  const f = await fixture();
+  try {
+    const quote = '回复请使用中文并给出核验结果。';
+    await f.put('.codex/AGENTS.md', quote); await f.put('.claude/CLAUDE.md', quote);
+    const context = await f.discovery.context(true, undefined, '中文核验');
+    const selected = JSON.parse(context.memory!.summary) as { text: string }[];
+    assert.equal(selected.filter(x => x.text === quote).length, 1);
+    const search = f.discovery.memory.extension('task-1', f.home, () => f.discovery.load()).tools!.find(t => t.name === 'user_memory_search')!;
+    const result = await (search.execute as any)({ query: '中文核验', domain: 'general' }, {}, {});
+    const matches = JSON.parse(result.output[0].text).matches.filter((x: { text: string }) => x.text === quote);
+    assert.equal(matches.length, 1); assert.equal(matches[0].evidence.length, 2);
+    assert.equal((await f.read()).facts.filter(x => x.text === quote).length, 2);
+  } finally { await f.close(); }
 });

@@ -121,9 +121,6 @@ struct PetBubble: View {
     private var compose: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: 12) {
-                companion.frame(width: 64, height: 88)
-                    .opacity(entered ? 1 : 0).offset(y: entered ? 0 : 5)
-                    .animation(reduced ? nil : .easeOut(duration: 0.26), value: entered)
                 VStack(spacing: 12) {
                     editor("想到什么，直接说。\n要做的事也可以交给我。", height: 88)
                     attachments
@@ -240,7 +237,6 @@ struct PetBubble: View {
     private var working: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 12) {
-                companion.frame(width: 70, height: 78)
                 VStack(alignment: .leading, spacing: 7) {
                     Text(model.taskTitle).font(.system(size: 18, weight: .medium)).lineLimit(2).help(model.taskTitle)
                     Text(model.task?.confirmed == false ? "正在整理交付约定" : "正在推进任务").font(.system(size: 13)).foregroundColor(Palette.muted)
@@ -333,47 +329,81 @@ struct PetBubble: View {
         VStack(alignment: .leading, spacing: 20) {
             heading("我对你的了解")
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                LazyVStack(alignment: .leading, spacing: 18) {
                     if let error = model.memoryError {
                         Text(error).foregroundColor(Palette.error)
                         Button("重新读取") { model.openMemory() }.buttonStyle(PetButton())
                     } else if let memory = model.memory {
                         if !memory.enabled {
-                            Text("工作记忆已关闭").font(.system(size: 16, weight: .medium))
-                            Text("在本机配置中开启 discovery 后重启后台，即可读取已有工作线索。").foregroundColor(Palette.muted)
+                            Text("用户记忆已关闭").font(.system(size: 16, weight: .medium))
+                            Text("在本机配置中开启 discovery 后重启后台，即可读取已有记忆线索。").foregroundColor(Palette.muted)
                         } else if memory.facts.isEmpty {
-                            Text("还没有可用的工作线索。").foregroundColor(Palette.muted)
+                            Text("还没有可用的记忆线索。").foregroundColor(Palette.muted)
                             Text("你可以直接开始，后续交流中的明确偏好会逐步整理进来。").foregroundColor(Palette.muted)
-                        }
-                        ForEach(memory.facts) { fact in
-                            VStack(alignment: .leading, spacing: 9) {
-                                Text(fact.text).lineSpacing(6).textSelection(.enabled)
-                                DisclosureGroup(fact.sourceLabel) {
-                                    VStack(alignment: .leading, spacing: 12) {
-                                        ForEach(Array(fact.evidence.enumerated()), id: \.offset) { _, source in
-                                            VStack(alignment: .leading, spacing: 8) {
-                                                Text(source.quote).lineSpacing(5)
-                                                Text(source.path).textSelection(.enabled)
-                                                Text("观察于 " + Date(timeIntervalSince1970: source.observedAt / 1000).formatted(date: .abbreviated, time: .shortened))
-                                            }.textSelection(.enabled)
-                                        }
-                                    }.padding(.top, 8)
-                                }.font(.system(size: 13)).foregroundColor(Palette.muted).tint(Palette.muted)
+                        } else {
+                            Text("根据本地智能体的记录整理。你可以在对话中补充或纠正；标记为待核实的内容保留原文来源。")
+                                .font(.system(size: 13)).foregroundColor(Palette.muted).lineSpacing(5)
+                            if memory.organizedFacts.isEmpty {
+                                Text("暂时还没有整理好的画像，原始线索保留在下方。")
+                                    .foregroundColor(Palette.muted)
                             }
-                            Rectangle().fill(Palette.line).frame(height: 1)
+                            ForEach(["general", "work", "life", "unknown"], id: \.self) { domain in
+                                let facts = memory.organizedFacts.filter { $0.domainKey == domain }
+                                if !facts.isEmpty {
+                                    Text(PetMemoryFact.domainLabel(domain)).font(.system(size: 16, weight: .semibold))
+                                    ForEach(facts) { fact in
+                                        memoryFact(fact)
+                                        Rectangle().fill(Palette.line).frame(height: 1)
+                                    }
+                                }
+                            }
+                            if !memory.organizedFacts.contains(where: { $0.domainKey == "life" }) {
+                                Text("个人生活 · 尚未整理").font(.system(size: 13)).foregroundColor(Palette.muted)
+                            }
+                            if !memory.sourceFacts.isEmpty {
+                                DisclosureGroup("来源线索（\(memory.sourceFacts.count)）") {
+                                    VStack(alignment: .leading, spacing: 14) {
+                                        Text("这些是自动提取的原文片段，尚未全部整理成画像。")
+                                            .font(.system(size: 13)).foregroundColor(Palette.muted)
+                                        ForEach(Array(memory.sourceFacts.prefix(10))) { fact in
+                                            memoryFact(fact)
+                                            Rectangle().fill(Palette.line).frame(height: 1)
+                                        }
+                                        if memory.sourceFacts.count > 10 { Text("这里只显示前 10 条，完整记录可在文件中查看。")
+                                            .font(.system(size: 13)).foregroundColor(Palette.muted) }
+                                    }.padding(.top, 10)
+                                }.tint(Palette.blue)
+                            }
+                            if let path = memory.profile {
+                                Button("打开完整记忆文件") { NSWorkspace.shared.open(URL(fileURLWithPath: path)) }
+                                    .buttonStyle(.plain).foregroundColor(Palette.blue)
+                            }
                         }
                         ForEach(memory.notices, id: \.self) { Text($0).font(.system(size: 13)).foregroundColor(Palette.muted) }
                     }
-                    if model.memoryLoading { HStack(spacing: 8) { ProgressView().controlSize(.small); Text("正在读取工作记忆…") }.foregroundColor(Palette.muted) }
+                    if model.memoryLoading { HStack(spacing: 8) { ProgressView().controlSize(.small); Text("正在读取用户记忆…") }.foregroundColor(Palette.muted) }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(.trailing, 5)
             }
             HStack { Spacer(); Button("回到当前工作") { model.showingMemory = false }.buttonStyle(PetButton()) }
         }.padding([.horizontal, .bottom], 24).padding(.top, 10)
             .background(Palette.surface)
     }
-    private var companion: some View {
-        PetPreview(appearance: model.appearance, picture: model.customPicture, resting: model.mode == .working, delivered: model.mode == .delivered)
-            .allowsHitTesting(false).accessibilityHidden(true)
+    private func memoryFact(_ fact: PetMemoryFact) -> some View {
+        VStack(alignment: .leading, spacing: 9) {
+            Text(fact.text).lineSpacing(6).textSelection(.enabled)
+            DisclosureGroup(fact.sourceLabel) {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let project = fact.project { Text("项目：" + project).textSelection(.enabled) }
+                    ForEach(Array(fact.evidence.enumerated()), id: \.offset) { _, source in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(source.quote).lineSpacing(5)
+                            Text(source.path).textSelection(.enabled)
+                            Text("观察于 " + Date(timeIntervalSince1970: source.observedAt / 1000).formatted(date: .abbreviated, time: .shortened))
+                        }.textSelection(.enabled)
+                    }
+                }.padding(.top, 8)
+            }.font(.system(size: 13)).foregroundColor(Palette.muted).tint(Palette.muted)
+        }
     }
     private func heading(_ title: String) -> some View {
         Text(title).font(.system(size: 22, weight: .medium)).lineSpacing(3)
@@ -464,12 +494,8 @@ struct PetBubble: View {
 struct PetDock: View {
     @ObservedObject var model: PetModel
     let expand: () -> Void
-    let moved: () -> Void
-    let menu: () -> Void
     var body: some View {
         HStack(spacing: 10) {
-            PetPreview(appearance: model.appearance, picture: model.customPicture, resting: model.mode == .working, delivered: model.mode == .delivered, press: expand, moved: moved, menu: menu)
-                .frame(width: 68, height: 68)
             Button(action: expand) {
                 HStack(spacing: 10) {
                     VStack(alignment: .leading, spacing: 5) {
@@ -479,7 +505,7 @@ struct PetDock: View {
                     Text(model.mode == .delivered ? "查看交付" : "展开").font(.system(size: 13)).foregroundColor(Palette.blue)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain).help(model.taskTitle).accessibilityLabel("展开 \(model.taskTitle)，\(model.dockStatus)")
-        }.padding(.leading, 4).padding(.trailing, 16).padding(.vertical, 4)
+        }.padding(.horizontal, 16).padding(.vertical, 12)
             .foregroundColor(Palette.ink).background(Palette.surface, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Palette.line, lineWidth: 1))
             .compositingGroup()

@@ -7,6 +7,7 @@ import { parse as parseToml } from "smol-toml";
 import { parse as parseJson, type ParseError } from "jsonc-parser";
 import { atomicJson, readJson, SerialQueue } from "./util.js";
 import { UserMemoryStore, userMemoryInstructions, type MemoryContext } from "./user-memory.js";
+import { memoryProject } from "./memory-sources.js";
 
 export type LocalSkill = { name: string; description: string; path: string; owner: string; disabled: boolean };
 export type LocalPlugin = { name: string; owner: string; kind: "plugin" | "extension" | "package" | "mcp"; source: string; enabled?: boolean };
@@ -236,25 +237,26 @@ export class LocalDiscovery {
     });
     return this.cached;
   }
-  async context(includeMemory = false): Promise<LocalContext> {
+  async context(includeMemory = false, workspace?: string, query = ""): Promise<LocalContext> {
     const value = await this.load();
-    const memory = includeMemory ? await this.memory.refresh(value).then(v => this.memory.context(v)).catch(() => undefined) : undefined;
+    const memory = includeMemory ? await this.memory.refresh(value, workspace).then(async v => this.memory.context(v, query, await memoryProject(workspace))).catch(() => undefined) : undefined;
     return { overview: join(this.directory, "overview.md"), catalogue: join(this.directory, "skills.md"), guidance: value.guidance.map(g => g.path),
       summary: JSON.stringify({ platform: value.platform, locale: value.locale, timezone: value.timezone, agents: value.agents.map(a => ({ name: a.name, model: a.model, language: a.language })), skills: value.skills.length, plugins: value.plugins.length }),
       skills: value.skills, ...(memory ? { memory } : {}) };
   }
   async view(refresh = false) {
     const value = await this.load(refresh);
-    const memory = await this.memory.refresh(value).then(v => this.memory.context(v)).catch(() => undefined);
+    const records = await this.memory.refresh(value).catch(() => undefined);
+    const memory = records && this.memory.context(records);
     return { enabled: true, scannedAt: value.scannedAt, agents: value.agents.length, skills: value.skills.length, plugins: value.plugins.length,
       overview: join(this.directory, "overview.md"), catalogue: join(this.directory, "skills.md"), memory: memory?.profile ?? null, memoryFacts: memory?.facts ?? 0,
-      notices: [...value.notices, ...(memory ? [] : ["用户工作记忆暂不可用，能力发现仍可使用。"]) ] };
+      notices: [...value.notices, ...(records?.notices ?? ["用户记忆暂不可用，能力发现仍可使用。"]) ] };
   }
   /** Read-only client projection of the existing source-bound memory; no new store or model call. */
   async memoryView() {
     const value = await this.memory.refresh(await this.load());
-    return { enabled: true, updatedAt: value.updatedAt,
-      facts: value.facts.filter(f => f.state === "active").map(({ id, text, category, scope, certainty, evidence }) => ({ id, text, category, scope, certainty, evidence })),
+    return { enabled: true, updatedAt: value.updatedAt, profile: this.memory.profile,
+      facts: value.facts.filter(f => f.state === "active").map(({ id, text, category, domain, scope, project, certainty, evidence, origin }) => ({ id, text, category, domain, scope, project, certainty, evidence, origin })),
       notices: value.notices };
   }
 }

@@ -22,7 +22,7 @@ if (process.platform !== "darwin") {
 const execute = promisify(execFile);
 const directory = resolve(".harness", "pet-tests", randomUUID());
 await mkdir(directory, { recursive: true, mode: 0o700 });
-const built = await buildPet(resolve(".harness"));
+const built = await buildPet(join(directory, "app-build"));
 const nativeApp = process.env.KADA_PET_TEST_APP ? resolve(process.env.KADA_PET_TEST_APP) : built.app;
 const nativeProcesses: ChildProcess[] = [];
 async function launchNative(configuration: string, phase: string) {
@@ -90,7 +90,7 @@ try {
   await writeFile(configuration, JSON.stringify({ dataDir: f.directory, port, version: VERSION, apiToken, smokeDirectory: nativeDirectory }), { mode: 0o600 });
   await launchNative(configuration, "native");
   const result = await until(async () => {
-    try { return JSON.parse(await readFile(join(nativeDirectory, "result.json"), "utf8")) as { ok: boolean; error?: string; taskId: string; quietWhileWorking: boolean; nativeInputChecks: number; appearanceChecks: number; petName: string; environmentReachable: boolean }; }
+    try { return JSON.parse(await readFile(join(nativeDirectory, "result.json"), "utf8")) as { ok: boolean; error?: string; taskId: string; startupPetVisible: boolean; petVisibleWhileOpen: boolean; quietWhileWorking: boolean; nativeInputChecks: number; appearanceChecks: number; petName: string; environmentReachable: boolean }; }
     catch {
       const child = nativeProcesses.at(-1);
       if (child && (child.exitCode !== null || child.signalCode !== null)) throw new Error(`Native process exited before producing its result (${child.exitCode ?? child.signalCode}); see ${directory}/native-stderr.log`);
@@ -101,6 +101,8 @@ try {
   await copyFile(join(nativeDirectory, "result.json"), join(directory, "result.json"));
   assert.equal(result.ok, true, result.error ?? "Packaged native flow failed");
   assert.equal(result.environmentReachable, true);
+  assert.equal(result.startupPetVisible, true);
+  assert.equal(result.petVisibleWhileOpen, true);
   for (const name of ["00-kada-goal.png", "01-goal.png", "02-question.png", "03-confirm.png", "04-quiet.png", "05-delivery.png", "06-personalization.png", "07-custom-pet.png", "08-kada-states.png", "09-chat.png", "10-memory.png", "11-edit.png", "12-dark.png", "13-narrow.png", "14-resume.png", "15-quiet-delivery.png"]) await copyFile(join(nativeDirectory, name), join(directory, name));
   assert.equal(result.quietWhileWorking, true);
   assert.equal(result.nativeInputChecks, 12);

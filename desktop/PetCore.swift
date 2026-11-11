@@ -1,5 +1,48 @@
 import Foundation
 
+/// Places auxiliary panels without covering the draggable desktop companion.
+enum PetWindowLayout {
+    static func bubble(pet: CGRect, visible: CGRect, desired: CGSize, gap: CGFloat = 8) -> CGRect {
+        let bounds = visible.insetBy(dx: 4, dy: 4)
+        let width = min(desired.width, bounds.width)
+        let height = min(desired.height, bounds.height)
+        let above = max(0, bounds.maxY - pet.maxY - gap)
+        let below = max(0, pet.minY - gap - bounds.minY)
+        let left = max(0, pet.minX - gap - bounds.minX)
+        let right = max(0, bounds.maxX - pet.maxX - gap)
+        let centeredX = min(max(pet.midX - width / 2, bounds.minX), bounds.maxX - width)
+        let centeredY = min(max(pet.midY - height / 2, bounds.minY), bounds.maxY - height)
+
+        if above >= height { return CGRect(x: centeredX, y: pet.maxY + gap, width: width, height: height) }
+        if max(left, right) >= width {
+            let x = left >= width ? pet.minX - gap - width : pet.maxX + gap
+            return CGRect(x: x, y: centeredY, width: width, height: height)
+        }
+        if below >= height { return CGRect(x: centeredX, y: pet.minY - gap - height, width: width, height: height) }
+        if max(above, below) > 0 {
+            let panelHeight = min(height, max(above, below))
+            let y = above >= below ? pet.maxY + gap : pet.minY - gap - panelHeight
+            return CGRect(x: centeredX, y: y, width: width, height: panelHeight)
+        }
+        let panelWidth = min(width, max(left, right))
+        let x = left >= right ? pet.minX - gap - panelWidth : pet.maxX + gap
+        return CGRect(x: x, y: centeredY, width: panelWidth, height: height)
+    }
+
+    static func status(pet: CGRect, visible: CGRect, desired: CGSize, gap: CGFloat = 8) -> CGRect {
+        let bounds = visible.insetBy(dx: 4, dy: 4)
+        let left = max(0, pet.minX - gap - bounds.minX)
+        let right = max(0, bounds.maxX - pet.maxX - gap)
+        let available = max(left, right)
+        guard available >= 180 else { return bubble(pet: pet, visible: visible, desired: desired, gap: gap) }
+        let width = min(desired.width, available)
+        let height = min(desired.height, bounds.height)
+        let x = left >= right ? pet.minX - gap - width : pet.maxX + gap
+        let y = min(max(pet.midY - height / 2, bounds.minY), bounds.maxY - height)
+        return CGRect(x: x, y: y, width: width, height: height)
+    }
+}
+
 struct LaunchConfiguration: Decodable {
     let dataDir: String
     let port: Int
@@ -101,19 +144,29 @@ struct PetMemoryFact: Decodable, Identifiable, Equatable {
     let id: String
     let text: String
     let category: String
+    let domain: String?
     let scope: String
+    let project: String?
     let certainty: String
     let evidence: [PetMemoryCitation]
+    let origin: String?
+    var domainKey: String { ["general", "work", "life"].contains(domain ?? "") ? domain! : "unknown" }
+    static func domainLabel(_ key: String) -> String {
+        switch key { case "general": return "通用"; case "work": return "工作"; case "life": return "个人生活"; default: return "待分类" }
+    }
     var sourceLabel: String {
-        let name = evidence.first.map { $0.path.hasPrefix("user:") ? "你的对话" : ($0.path as NSString).lastPathComponent } ?? "来源"
+        let name = evidence.first.map { $0.path.hasPrefix("pi-task:") || $0.path.hasPrefix("user:") ? "你的对话" : ($0.path as NSString).lastPathComponent } ?? "来源"
         return name + " · " + (scope == "project" ? "项目线索" : "全局线索") + (certainty == "inferred" ? " · 待核实" : "")
     }
 }
 struct PetMemoryView: Decodable {
     let enabled: Bool
     let updatedAt: Double?
+    let profile: String?
     let facts: [PetMemoryFact]
     let notices: [String]
+    var organizedFacts: [PetMemoryFact] { facts.filter { $0.origin == "organized" } }
+    var sourceFacts: [PetMemoryFact] { facts.filter { $0.origin != "organized" } }
 }
 
 enum PetBriefEdit {

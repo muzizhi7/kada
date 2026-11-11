@@ -12,6 +12,24 @@ import AppKit
         var object = try JSONSerialization.jsonObject(with: fixture) as! [String: Any]
         func decode(_ value: [String: Any]) throws -> PetTask { try JSONDecoder().decode(PetTask.self, from: JSONSerialization.data(withJSONObject: value)) }
         let ready = try decode(object)
+        let display = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let bottomPet = CGRect(x: 1248, y: 22, width: 160, height: 146)
+        let desiredPanel = CGSize(width: 444, height: 640)
+        let above = PetWindowLayout.bubble(pet: bottomPet, visible: display, desired: desiredPanel)
+        try expect(above.minY >= bottomPet.maxY && !above.intersects(bottomPet) && display.contains(above), "conversation is above the pet on a normal display")
+        let topPet = CGRect(x: 1248, y: 730, width: 160, height: 146)
+        let beside = PetWindowLayout.bubble(pet: topPet, visible: display, desired: desiredPanel)
+        try expect(beside.maxX <= topPet.minX && !beside.intersects(topPet) && display.contains(beside), "conversation moves beside a pet near the top edge")
+        let narrowDisplay = CGRect(x: 0, y: 0, width: 560, height: 900)
+        let narrowPet = CGRect(x: 200, y: 730, width: 160, height: 146)
+        let below = PetWindowLayout.bubble(pet: narrowPet, visible: narrowDisplay, desired: desiredPanel)
+        try expect(below.maxY <= narrowPet.minY && narrowDisplay.contains(below), "conversation fits below on a narrow display")
+        let smallDisplay = CGRect(x: 0, y: 0, width: 500, height: 480)
+        let middlePet = CGRect(x: 170, y: 170, width: 160, height: 146)
+        let reducedPanel = PetWindowLayout.bubble(pet: middlePet, visible: smallDisplay, desired: desiredPanel)
+        try expect(!reducedPanel.intersects(middlePet) && smallDisplay.contains(reducedPanel) && reducedPanel.height > 0, "a small screen keeps the pet unobstructed")
+        let status = PetWindowLayout.status(pet: bottomPet, visible: display, desired: CGSize(width: 282, height: 100))
+        try expect(status.maxX <= bottomPet.minX && !status.intersects(bottomPet) && display.contains(status), "task status remains beside the desktop pet")
         try expect(ready.mode == .confirm, "confirmation state")
         try expect(ready.confirmation?["revision"] as? Int == 2, "exact displayed revision")
         try expect(ready.confirmation?["digest"] as? String == String(repeating: "a", count: 64), "exact displayed digest")
@@ -84,6 +102,18 @@ import AppKit
         let memory = try JSONDecoder().decode(PetMemoryView.self, from: Data(memoryJSON.utf8))
         try expect(memory.facts.first?.sourceLabel == "USER.md · 项目线索 · 待核实", "memory UI preserves project scope and uncertainty")
         try expect(memory.facts.first?.evidence.first?.quote == "偏好中文", "memory UI receives the actual quoted evidence")
+        let lifeJSON = """
+        {"enabled":true,"facts":[{"id":"f2","text":"喜欢旅行","category":"life","domain":"life","scope":"project","project":"/tmp/travel","certainty":"inferred","evidence":[]}],"notices":[]}
+        """
+        let life = try JSONDecoder().decode(PetMemoryView.self, from: Data(lifeJSON.utf8))
+        try expect(life.facts.first?.domainKey == "life" && PetMemoryFact.domainLabel("life") == "个人生活", "memory UI groups personal life")
+        try expect(life.facts.first?.project == "/tmp/travel", "memory UI receives the source project")
+        let portraitJSON = """
+        {"enabled":true,"profile":"/tmp/user-memory.md","facts":[{"id":"f3","text":"整理后的偏好","category":"preferences","domain":"general","scope":"global","certainty":"inferred","origin":"organized","evidence":[]},{"id":"f4","text":"原始线索","category":"notes","scope":"global","certainty":"inferred","origin":"imported","evidence":[]}],"notices":[]}
+        """
+        let portrait = try JSONDecoder().decode(PetMemoryView.self, from: Data(portraitJSON.utf8))
+        try expect(portrait.organizedFacts.map(\.id) == ["f3"] && portrait.sourceFacts.map(\.id) == ["f4"], "organized portrait and raw clues are displayed separately")
+        try expect(portrait.profile == "/tmp/user-memory.md" && memory.profile == nil && memory.sourceFacts.count == 1, "old daemons remain decodable and full profile can be opened")
 
         let profileDirectory = directory.appendingPathComponent("appearance", isDirectory: true)
         let store = PetAppearanceStore(directory: profileDirectory)

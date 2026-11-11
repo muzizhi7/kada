@@ -26,13 +26,14 @@ import UniformTypeIdentifiers
     var hideBubble: (() -> Void)?
     private var selectedID: String?
     private var lastAttention = ""
+    private var restoringSelectedTask = false
     private var generation = 0
     private var polling: Task<Void, Never>?
     private var failures = 0
     var mode: PetTask.Mode? { task?.mode ?? (selectedID == nil ? nil : .working) }
     var taskTitle: String { task?.brief?.outcome ?? task?.objective.components(separatedBy: "\n").first ?? appearance.name }
     var stateLabel: String {
-        if showingMemory { return "工作记忆" }
+        if showingMemory { return "用户记忆" }
         if resumePrompt { return "追加预算" }
         switch mode {
         case nil, .chat: return task?.status == "running" ? "正在回复" : "在听"
@@ -77,6 +78,8 @@ import UniformTypeIdentifiers
         appearance = saved
         customPicture = appearanceStore.imageData(for: saved).flatMap { NSImage(data: $0) }
         selectedID = UserDefaults.standard.string(forKey: configuration.defaultsKey)
+        restoringSelectedTask = selectedID != nil
+        collapsed = restoringSelectedTask
     }
     func saveAppearance(_ value: PetAppearance, importedImage: Data? = nil) throws {
         let saved = try appearanceStore.save(value, importedImage: importedImage)
@@ -101,12 +104,14 @@ import UniformTypeIdentifiers
         do {
             let value = try await api.task(id)
             guard selectedID == id, generation == revision else { return }
+            let restoring = restoringSelectedTask
+            restoringSelectedTask = false
             failures = 0
             if task != value { task = value }
             if error?.hasPrefix("暂时联系不上") == true { error = nil }
             if value.mode != .working && value.attentionKey != lastAttention {
                 lastAttention = value.attentionKey
-                if !collapsed || ![PetTask.Mode.delivered, .chat].contains(value.mode) { showBubble?(false) }
+                if !restoring && (!collapsed || ![PetTask.Mode.delivered, .chat].contains(value.mode)) { showBubble?(false) }
             }
         } catch {
             guard selectedID == id, generation == revision else { return }
@@ -120,13 +125,14 @@ import UniformTypeIdentifiers
     func select(_ id: String) async {
         generation += 1
         selectedID = id
+        restoringSelectedTask = false
         task = nil; draft = ""; editing = false; error = nil; attachments = []; lastAttention = ""; resumePrompt = false; showingMemory = false
         UserDefaults.standard.set(id, forKey: api.configuration.defaultsKey)
         await refresh()
         showBubble?(true)
     }
     func newGoal() {
-        generation += 1; selectedID = nil; lastAttention = ""
+        generation += 1; selectedID = nil; lastAttention = ""; restoringSelectedTask = false
         UserDefaults.standard.removeObject(forKey: api.configuration.defaultsKey)
         task = nil; draft = ""; attachments = []; editing = false; error = nil; resumePrompt = false; showingMemory = false
         showBubble?(true)
@@ -184,7 +190,7 @@ import UniformTypeIdentifiers
         Task {
             defer { memoryLoading = false }
             do { memory = try await api.request("/v1/environment/memory") }
-            catch { memoryError = "暂时无法读取工作记忆。可以重试，当前输入和任务会保留。" }
+            catch { memoryError = "暂时无法读取用户记忆。可以重试，当前输入和任务会保留。" }
         }
     }
     func retry() {
@@ -595,7 +601,7 @@ private final class PetPanel: NSPanel {
         bubble.contentView = hosting
         dock = panel(NSSize(width: 382, height: 100), interactive: true) as? PetPanel
         dock.title = "Kada 当前工作"
-        let dockHost = NSHostingView(rootView: PetDock(model: model, expand: { [weak self] in self?.show(focus: true) }, moved: { [weak self] in self?.dockMoved() }, menu: { [weak self] in self?.showMenu() }))
+        let dockHost = NSHostingView(rootView: PetDock(model: model, expand: { [weak self] in self?.show(focus: true) }))
         dockHost.sizingOptions = []; dock.contentView = dockHost
         model.showBubble = { [weak self] focus in self?.show(focus: focus) }
         model.hideBubble = { [weak self] in self?.hide() }
@@ -606,7 +612,7 @@ private final class PetPanel: NSPanel {
         statusItem.button?.image = NSImage(systemSymbolName: "square.stack.3d.up.fill", accessibilityDescription: "Kada")
         statusItem.button?.target = self; statusItem.button?.action = #selector(statusPressed)
         updateAppearance()
-        pet.orderFrontRegardless(); positionBubble(); show(focus: true); model.start()
+        positionBubble(); model.start()
         if let directory = model.api.configuration.smokeDirectory {
             Task {
                 if self.model.api.configuration.appearanceSmokeVerifyOnly == true { await verifyAppearanceReopen(directory) }
@@ -632,10 +638,7 @@ private final class PetPanel: NSPanel {
     private func positionBubble() {
         guard bubble != nil else { return }
         let f = screen().visibleFrame
-        let size = NSSize(width: min(444, f.width - 8), height: min(model.panelHeight, f.height - 8))
-        let x = min(max(pet.frame.midX - 302, f.minX + 4), f.maxX - size.width - 4)
-        let y = min(pet.frame.maxY - 9, f.maxY - size.height - 4)
-        let target = NSRect(x: x, y: max(f.minY + 4, y), width: size.width, height: size.height)
+        let target = PetWindowLayout.bubble(pet: pet.frame, visible: f, desired: NSSize(width: 444, height: model.panelHeight))
         if lastBubbleFrame != target {
             lastBubbleFrame = target
             if bubble.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
@@ -644,14 +647,8 @@ private final class PetPanel: NSPanel {
                 bubble.setFrame(target, display: true, animate: true)
             } else { bubble.setFrame(target, display: true) }
         }
-        let dockSize = NSSize(width: min(382, f.width - 8), height: 100)
-        let dockFrame = NSRect(x: min(max(pet.frame.maxX - dockSize.width, f.minX + 4), f.maxX - dockSize.width - 4),
-            y: min(max(pet.frame.minY + 24, f.minY + 4), f.maxY - dockSize.height - 4), width: dockSize.width, height: dockSize.height)
+        let dockFrame = PetWindowLayout.status(pet: pet.frame, visible: f, desired: NSSize(width: 282, height: 100))
         if !NSEqualRects(dock.frame, dockFrame) { dock.setFrame(dockFrame, display: true) }
-    }
-    private func dockMoved() {
-        pet.setFrameOrigin(NSPoint(x: dock.frame.maxX - pet.frame.width, y: dock.frame.minY - 24))
-        keepOnScreen(); positionBubble(); savePosition()
     }
     private func updateAppearance() {
         if cat.petAppearance != model.appearance { cat.petAppearance = model.appearance }
@@ -663,21 +660,20 @@ private final class PetPanel: NSPanel {
         if cat.resting != resting { cat.resting = resting }
         if cat.delivered != delivered { cat.delivered = delivered }
         positionBubble()
-        if companionHidden || personalization?.isVisible == true {
+        if companionHidden {
             pet.orderOut(nil); dock.orderOut(nil)
-        } else if bubble.isVisible {
-            pet.orderOut(nil); dock.orderOut(nil)
-        } else if model.collapsed && (model.task != nil || !model.draft.isEmpty) {
-            pet.orderOut(nil); dock.orderFrontRegardless()
         } else {
-            dock.orderOut(nil); pet.orderFrontRegardless()
+            pet.orderFrontRegardless()
+            if !bubble.isVisible && personalization?.isVisible != true && model.collapsed && (model.task != nil || !model.draft.isEmpty) {
+                dock.orderFrontRegardless()
+            } else { dock.orderOut(nil) }
         }
     }
     private func show(focus: Bool) {
         if personalization?.isVisible == true { return }
         companionHidden = false
         if model.collapsed { model.collapsed = false }
-        pet.orderOut(nil); dock.orderOut(nil); positionBubble(); bubble.orderFrontRegardless()
+        dock.orderOut(nil); positionBubble(); pet.orderFrontRegardless(); bubble.orderFrontRegardless()
         if focus { NSApp.activate(ignoringOtherApps: true); bubble.makeKey() }
     }
     private func hide() {
@@ -696,7 +692,7 @@ private final class PetPanel: NSPanel {
         menu.addItem(.separator())
         add(menu, "新对话", #selector(newGoal))
         add(menu, "本机 Agent 与 Skills…", #selector(openEnvironment))
-        add(menu, "用户工作记忆…", #selector(openUserMemory))
+        add(menu, "用户记忆…", #selector(openUserMemory))
         let recent = NSMenu(title: "最近对话与任务")
         let recentItem = NSMenuItem(title: "最近对话与任务", action: nil, keyEquivalent: ""); recentItem.submenu = recent; menu.addItem(recentItem)
         recent.addItem(withTitle: "正在读取…", action: nil, keyEquivalent: "")
@@ -735,13 +731,13 @@ private final class PetPanel: NSPanel {
         let host = NSHostingView(rootView: PetPersonalization(model: model, editor: editor, close: { [weak self] in self?.closePersonalization() }, save: { [weak self] in self?.savePersonalization() }))
         host.sizingOptions = []; window.contentView = host
         let visible = screen().visibleFrame
-        window.setFrameOrigin(NSPoint(x: min(max(pet.frame.midX - 302, visible.minX + 4), visible.maxX - 408), y: min(max(pet.frame.maxY - 575, visible.minY + 4), visible.maxY - 584)))
+        window.setFrame(PetWindowLayout.bubble(pet: pet.frame, visible: visible, desired: NSSize(width: 404, height: 580)), display: true)
         personalization = window
         NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
     }
     private func closePersonalization() {
         personalization?.makeFirstResponder(nil); personalization?.orderOut(nil); personalization = nil; appearanceEditor = nil
-        if restoreBubbleAfterSettings || model.mode != .working { show(focus: true) }
+        if restoreBubbleAfterSettings { show(focus: true) }
         else { updateAppearance() }
     }
     private func savePersonalization() {
@@ -780,6 +776,11 @@ private final class PetPanel: NSPanel {
             guard environment.enabled, environment.skills > 0, let overview = environment.overview,
                   FileManager.default.fileExists(atPath: overview) else { throw PetError.message("First-run local discovery must be available through the native client") }
             try await Task.sleep(nanoseconds: 350_000_000)
+            guard pet.isVisible, !bubble.isVisible else { throw PetError.message("Startup must show the desktop pet without opening the conversation") }
+            show(focus: false)
+            guard pet.isVisible, bubble.isVisible, !pet.frame.intersects(bubble.frame) else { throw PetError.message("Opening the conversation must leave the desktop pet visible and unobstructed") }
+            let availableAbove = screen().visibleFrame.maxY - 4 - pet.frame.maxY - 8
+            if availableAbove >= model.panelHeight && bubble.frame.minY < pet.frame.maxY { throw PetError.message("The conversation should appear above the pet when there is room") }
             try snapshotKada(directory + "/08-kada-states.png")
             try snapshot(directory + "/00-kada-goal.png")
             let appearanceChecks = try await verifyPersonalization(directory)
@@ -834,7 +835,7 @@ private final class PetPanel: NSPanel {
             guard model.task?.confirmation != nil else { throw PetError.message("Missing native confirmation payload") }
             model.confirm()
             try await waitUntil { self.model.mode == .working && !self.model.busy }
-            guard !bubble.isVisible else { throw PetError.message("The bubble must collapse during autonomous execution") }
+            guard !bubble.isVisible, pet.isVisible, dock.isVisible, !pet.frame.intersects(dock.frame) else { throw PetError.message("The pet and status must remain visible during autonomous execution") }
             try snapshot(directory + "/04-quiet.png", includeBubble: false)
             model.control("pause")
             try await waitUntil { self.model.mode == .paused && !self.model.busy }
@@ -846,13 +847,13 @@ private final class PetPanel: NSPanel {
             model.control("resume")
             try await waitUntil { self.model.mode == .working && !self.model.busy }
             try await waitUntil { self.model.mode == .delivered && !self.model.busy }
-            guard !bubble.isVisible, dock.isVisible else { throw PetError.message("A collapsed task must deliver quietly in its status strip") }
+            guard !bubble.isVisible, pet.isVisible, dock.isVisible, !pet.frame.intersects(dock.frame) else { throw PetError.message("A collapsed task must deliver quietly beside the visible pet") }
             try snapshot(directory + "/15-quiet-delivery.png", includeBubble: false)
             guard let task = model.task, let file = task.delivery?.artifacts.first else { throw PetError.message("Missing delivery") }
             let url = try PetFiles.artifact(file, workspace: task.workspace)
             guard try String(contentsOf: url).contains("来源") else { throw PetError.message("Missing source in actual deliverable") }
             try snapshot(directory + "/05-delivery.png")
-            let result: [String: Any] = ["ok": true, "pid": ProcessInfo.processInfo.processIdentifier, "taskId": task.id, "confirmed": task.confirmed, "artifacts": task.delivery?.artifacts ?? [], "screenshots": 16, "normalChat": true, "quietWhileWorking": true, "quietDelivery": true, "memoryPreservedDraft": true, "nativeInputChecks": inputChecks, "appearanceChecks": appearanceChecks, "petName": model.appearance.name, "environmentReachable": true]
+            let result: [String: Any] = ["ok": true, "pid": ProcessInfo.processInfo.processIdentifier, "taskId": task.id, "confirmed": task.confirmed, "artifacts": task.delivery?.artifacts ?? [], "screenshots": 16, "normalChat": true, "startupPetVisible": true, "petVisibleWhileOpen": true, "quietWhileWorking": true, "quietDelivery": true, "memoryPreservedDraft": true, "nativeInputChecks": inputChecks, "appearanceChecks": appearanceChecks, "petName": model.appearance.name, "environmentReachable": true]
             let data = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
             try data.write(to: URL(fileURLWithPath: directory + "/result.json"))
         } catch {
@@ -917,6 +918,7 @@ private final class PetPanel: NSPanel {
         do {
             try await Task.sleep(nanoseconds: 250_000_000)
             guard model.appearance.name == "米粒", model.appearance.look == .custom, model.customPicture != nil, cat.petAppearance.name == "米粒" else { throw PetError.message("Custom name/look did not survive a real process restart") }
+            guard pet.isVisible, !bubble.isVisible else { throw PetError.message("Reopening a selected task must start with the pet, not an open conversation") }
             try JSONSerialization.data(withJSONObject: ["ok": true, "name": model.appearance.name, "look": model.appearance.look.rawValue, "ownedPictureRestored": true]).write(to: URL(fileURLWithPath: directory + "/result-reopen.json"))
         } catch {
             try? JSONSerialization.data(withJSONObject: ["ok": false, "error": error.localizedDescription]).write(to: URL(fileURLWithPath: directory + "/result-reopen.json"))

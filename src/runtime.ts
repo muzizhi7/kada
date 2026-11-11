@@ -180,9 +180,9 @@ export class LocalRuntime {
       const workspace = await Workspace.open(meta.workspace);
       const registry = createRegistry();
       const nativeSkills = meta.resourcePolicy === "pi-skills";
-      const localContext = meta.discovery && this.config.discovery === true ? await this.discovery.context(meta.userMemory === true).catch(() => undefined) : undefined;
+      const localContext = meta.discovery && this.config.discovery === true ? await this.discovery.context(meta.userMemory === true, meta.workspace, meta.objective).catch(() => undefined) : undefined;
       const statements = () => this.userStatements(this.active.get(meta.id)!);
-      const memory = localContext?.memory ? this.discovery.memory.extension(meta.id, localContext.memory.home, () => this.discovery.load(), meta.entrypoint === "chat" ? statements : undefined) : undefined;
+      const memory = localContext?.memory ? this.discovery.memory.extension(meta.id, localContext.memory.home, () => this.discovery.load(), meta.entrypoint === "chat" ? statements : undefined, meta.workspace) : undefined;
       const readObserver = skillReads(localContext?.skills);
       const goal = goalExtension({ advisoryPlan: meta.planPolicy === "advisory", captureSkill: nativeSkills && !!meta.learning }), readonly = workspaceExtension(workspace, true), review = reviewExtension();
       const preparation = preparationExtension(workspace, this.defaultBudget(meta));
