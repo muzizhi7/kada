@@ -132,7 +132,7 @@ test("exiting chat during an active response leaves the task running in the back
 test("chat starts a separate daemon when needed and reuses the existing one", { timeout: 25_000 }, async () => {
   const f = await demoFixture();
   let pid: number | undefined;
-  const config = { ...f.config, port: await freePort(), model: undefined };
+  const config = { ...f.config, dataDir: join(f.directory, "daemon"), port: await freePort(), model: undefined };
   const file = join(f.directory, "config.json");
   try {
     await writeFile(file, JSON.stringify(config));
@@ -145,7 +145,9 @@ test("chat starts a separate daemon when needed and reuses the existing one", { 
   } finally {
     if (pid) {
       process.kill(pid, "SIGTERM");
-      await until(async () => access(`${f.directory}.lock`).then(() => true, () => false), exists => !exists);
+      await until(process.platform === "win32"
+        ? () => createClient(config).healthy()
+        : () => access(`${config.dataDir}.lock`).then(() => true, () => false), active => !active);
     }
     await f.close();
   }

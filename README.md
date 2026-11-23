@@ -28,7 +28,7 @@ Kada 是基于 Pi 的目标驱动 Agent。它了解你已有的工作环境，�
 
 ## 快速开始
 
-需要 **Node.js 24.7+** 和 npm。终端入口不需要 Swift；桌面伙伴需要 **macOS 13+** 和 Apple Swift 命令行工具。Linux 已配置 CI；Windows 尚未验证。
+需要 **Node.js 24.7+** 和 npm。终端入口使用 Node.js，桌面伙伴需要 **macOS 13+** 和 Apple Swift 命令行工具。Linux 已配置 CI。Windows 已用脚本化模型验证终端接回和任务恢复。
 
 ```sh
 git clone https://github.com/muzizhi7/kada.git

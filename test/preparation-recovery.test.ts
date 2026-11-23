@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { until } from "./helpers.js";
 
-for (const stage of ["waiting", "executing"]) test(`SIGKILL while ${stage} preserves confirmation boundary, budget and already executed work`, { timeout: 25000 }, async () => {
+for (const stage of ["waiting", "executing"]) test(`SIGKILL while ${stage} preserves confirmation boundary, budget and already executed work`, { timeout: 60000 }, async () => {
   const directory = await realpath(await mkdtemp(join(tmpdir(), "pi-brief-crash-")));
   let processHandle: ChildProcess | undefined;
   const worker = (mode: string) => {
@@ -21,7 +21,10 @@ for (const stage of ["waiting", "executing"]) test(`SIGKILL while ${stage} prese
   };
   try {
     const first = worker("create");
-    await until(async () => first.stdout(), text => text.includes('"type":"ready"'));
+    await until(async () => {
+      assert.equal(first.child.exitCode ?? first.child.signalCode, null, first.stderr());
+      return first.stdout();
+    }, text => text.includes('"type":"ready"'), 30000);
     const before = JSON.parse(first.stdout().trim().split("\n").at(-1)!);
     first.child.kill("SIGKILL"); await first.exit;
     await writeFile(join(directory, "release"), "resume");

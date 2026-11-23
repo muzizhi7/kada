@@ -48,8 +48,8 @@ test("directory delivery includes nested/hidden/empty files and empty directorie
     assert.equal(report.passed, true);
     assert.equal(report.files.length, 3);
     assert.equal(report.directories?.length, 2);
-    assert.equal(report.directories?.find(d => d.path.endsWith("/bundle"))?.entries, 4);
-    assert.equal(report.files.find(f => f.path.endsWith("/empty"))?.bytes, 0);
+    assert.equal(report.directories?.find(d => d.path === join(workspace.root, "bundle"))?.entries, 4);
+    assert.equal(report.files.find(f => f.path === join(workspace.root, "bundle", "empty"))?.bytes, 0);
     assert.deepEqual(await hashFiles(workspace, ["bundle"]), [report.directories![0]]);
     const before = (await workspace.inspectPath("bundle")).sha256;
     await mkdir(join(directory, "bundle/new-empty"));
@@ -68,7 +68,7 @@ test("directory observation rejects escaped paths, links and mutation during its
     const workspace = await Workspace.open(join(directory, "work"));
     await mkdir(join(workspace.root, "bundle"));
     await writeFile(join(workspace.root, "bundle/data"), "original");
-    await symlink(directory, join(workspace.root, "bundle/link"));
+    await symlink(directory, join(workspace.root, "bundle/link"), "junction");
     await assert.rejects(workspace.inspectPath("bundle"), /Symlinks/);
     await assert.rejects(workspace.inspectPath("../outside"), /outside/);
     await rm(join(workspace.root, "bundle/link"));

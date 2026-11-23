@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdir, open } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { setTimeout } from "node:timers/promises";
 import type { Config } from "./config.js";
@@ -33,7 +33,7 @@ export async function ensureDaemon(config: Config, configFile?: string): Promise
   const log = await open(logfile, "a", 0o600);
   const source = import.meta.url.endsWith(".ts");
   const cli = fileURLToPath(new URL(source ? "./cli.ts" : "./cli.js", import.meta.url));
-  const loader = source ? ["--import", createRequire(import.meta.url).resolve("tsx")] : [];
+  const loader = source ? ["--import", pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href] : [];
   let failure: string | undefined;
   let ended = false;
   const child = spawn(process.execPath, [...loader, cli, "serve", ...(configFile ? ["--config", resolve(configFile)] : [])], {
