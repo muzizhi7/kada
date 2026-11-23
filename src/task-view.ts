@@ -14,6 +14,7 @@ export function taskView(status: TaskStatus) {
     confirmed: Boolean(goal?.confirmation), question: goal?.question ?? null, reason: goal?.reason ?? null,
     budget: { estimatedCostUsd: status.budget.estimatedCostUsd, costLimit: status.budget.costLimit },
     resumeBudget: status.resumeBudget,
+    progress: { steps: goal?.plan ?? [], tools: status.activeTools },
     delivery: status.status === "completed" && goal?.candidate ? {
       summary: goal.candidate.summary, artifacts: goal.candidate.artifacts,
       verification: verificationText(status), assumptions: goal.brief?.assumptions ?? [],

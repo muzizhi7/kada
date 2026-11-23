@@ -1,5 +1,23 @@
 import type { TaskStatus } from "./client.js";
 
+export function progressText(status: TaskStatus): string {
+  const steps = status.goal?.plan ?? [];
+  const tools = status.activeTools ?? [];
+  const lines: string[] = [];
+  if (steps.length) {
+    const done = steps.filter(step => step.status === "done");
+    const current = steps.filter(step => step.status === "running");
+    lines.push(`步骤记录：${done.length}/${steps.length}（辅助进度）`);
+    if (done.length) lines.push(`已完成步骤：${done.map(step => step.title).join("、")}`);
+    if (current.length) lines.push(`当前步骤：${current.map(step => step.title).join("、")}`);
+  }
+  if (tools.length) {
+    const names = [...new Set(tools.map(tool => `${tool.worker ? "子 Agent · " : ""}${tool.name}`))];
+    lines.push(`正在执行：${names.join("、")}`);
+  }
+  return lines.join("\n");
+}
+
 export function briefText(status: TaskStatus): string {
   const brief = status.goal?.brief;
   if (!brief) return "正在整理目标与交付标准。";

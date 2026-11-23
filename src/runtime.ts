@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { BACKGROUND_CONTEXT as ctx } from "@earendil-works/chord/context";
-import { Harness, UserEntry, configure, createRegistry, type Conversation, type ConversationRecord, type Cursor, type EntryId, type Extension } from "@earendil-works/pi-durable";
+import { Harness, LiveDoc, UserEntry, configure, createRegistry, type Conversation, type ConversationRecord, type Cursor, type EntryId, type Extension } from "@earendil-works/pi-durable";
 import { estimateContextTokens } from "@earendil-works/pi-ai/utils/estimate";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import type { Models } from "@earendil-works/pi-ai";
@@ -580,7 +580,20 @@ export class LocalRuntime {
       const compactions = await this.compactionTotals(active, conversations);
       const workerIds = new Set(conversations.filter(c => c.owner).map(c => c.id));
       const interaction = meta.entrypoint === "chat" && !goal ? "chat" as const : "goal" as const;
+      const activeTools = ["running", "verifying"].includes(status) ? await active.harness.commit(async tx => {
+        const tools: { id: string; name: string; worker: boolean }[] = [];
+        for (const conversation of conversations) {
+          const live = await tx.doc(LiveDoc, conversation.id);
+          for (const tool of [...(live.tools ?? []), ...(live.nestedTools ?? [])]) {
+            if (tool.status === "running") tools.push({
+              id: `${conversation.id}:${tool.callId}`, name: tool.name, worker: workerIds.has(conversation.id),
+            });
+          }
+        }
+        return tools;
+      }, ctx) : [];
       return { ...meta, objective: goal?.objective || meta.objective, interaction, deadlineAt: this.deadline(active, goal), status, goal, submission, messages: context.messages, workerCount: workerIds.size,
+        activeTools,
         briefDigest: goal?.brief ? briefDigest(goal.brief) : null,
         activeWorkerCount: new Set(inspection.tasks.map(t => t.record.conversationId).filter(id => workerIds.has(id))).size,
         compactions: compactions.total, rootCompactions: compactions.root,

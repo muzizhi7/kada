@@ -4,7 +4,7 @@ import { setTimeout } from "node:timers/promises";
 import type { Readable, Writable } from "node:stream";
 import type { HarnessClient, TaskMeta, TaskStatus } from "./client.js";
 import { errorText, SerialQueue } from "./util.js";
-import { briefText, usageText, verificationText } from "./presentation.js";
+import { briefText, progressText, usageText, verificationText } from "./presentation.js";
 import { isConfirmation } from "./preparation.js";
 import { conversationAnswer as answer } from "./conversation.js";
 
@@ -74,7 +74,9 @@ export class ChatSession {
         if (command === "/status") {
           const status = await this.client.request<TaskStatus>(`/v1/tasks/${this.taskId}`);
           const goal = status.goal;
-          this.info(`${status.interaction === "chat" ? "对话" : "任务"}：${status.id}\n状态：${status.status === "completed" ? "已交付（核验范围见下）" : status.status}\n子 Agent：${status.activeWorkerCount} 个运行 / ${status.workerCount} 个累计\n输出目录：${status.workspace}\n${usageText(status)}${goal ? `\n目标修订：${goal.revision}\n计划${status.planPolicy === "advisory" ? "（辅助进度）" : "（历史交付约束）"}：${goal.plan.filter(s => s.status === "done").length}/${goal.plan.length}\n自动返工：${goal.reworks}${goal.reason ? `\n原因：${goal.reason}` : ""}${goal.question ? `\n待回答：${goal.question}` : ""}` : ""}\n${verificationText(status)}${goal?.brief ? `\n${briefText(status)}${goal.confirmation ? "\n该版本已确认；预算不会因普通消息或重复确认补充。" : ""}` : ""}`);
+          this.info(`${status.interaction === "chat" ? "对话" : "任务"}：${status.id}\n状态：${status.status === "completed" ? "已交付（核验范围见下）" : status.status}\n子 Agent：${status.activeWorkerCount} 个运行 / ${status.workerCount} 个累计\n输出目录：${status.workspace}\n${usageText(status)}${goal ? `\n目标修订：${goal.revision}\n自动返工：${goal.reworks}${goal.reason ? `\n原因：${goal.reason}` : ""}${goal.question ? `\n待回答：${goal.question}` : ""}` : ""}\n${verificationText(status)}${goal?.brief ? `\n${briefText(status)}${goal.confirmation ? "\n该版本已确认；预算不会因普通消息或重复确认补充。" : ""}` : ""}`);
+          const progress = progressText(status);
+          if (progress) this.info(progress);
         } else {
           await this.client.request(`/v1/tasks/${this.taskId}/${command!.slice(1)}`, "POST", {});
           this.activity = "";
@@ -144,7 +146,8 @@ export class ChatSession {
         this.emit({ kind: "answer", text: goal.candidate.summary });
       }
     }
-    const activity = `${status.status}:${status.workerCount}:${goal?.brief?.revision}:${goal?.reworks}:${goal?.reason}`;
+    const progress = progressText(status);
+    const activity = JSON.stringify([status.status, status.workerCount, goal?.brief?.revision, goal?.reworks, goal?.reason, goal?.question, progress]);
     if (activity === this.activity) return;
     this.activity = activity;
     if (status.status === "running" || status.status === "pending") {
@@ -155,6 +158,7 @@ export class ChatSession {
     else if (["blocked", "needs_attention"].includes(status.status)) this.info(`任务已停止自动推进：${goal?.reason}\n可补充要求，或输入 /resume 重试。`);
     else if (status.status === "failed") this.emit({ kind: "error", text: `执行失败：${goal?.reason ?? (status.submission?.status === "unanswered" ? status.submission.reason : "未知原因")}。可以补充要求重试，或输入 /resume。` });
     else if (status.status === "budget_limited") this.info(`任务预算已耗尽：${goal?.reason ?? "达到时限"}。输入 /resume 可按配置补充一份任务预算后继续。`);
+    if (progress) this.info(progress);
   }
 }
 
