@@ -3,11 +3,11 @@ import assert from'node:assert/strict';
 import{mkdtemp,writeFile,rm}from'node:fs/promises';
 import{tmpdir}from'node:os';
 import{join}from'node:path';
-import{fileURLToPath}from'node:url';
+import{fileURLToPath,pathToFileURL}from'node:url';
 import{createRequire}from'node:module';
 import{execFile}from'node:child_process';
 import{promisify}from'node:util';
-const execute=promisify(execFile),loader=createRequire(import.meta.url).resolve('tsx'),script=fileURLToPath(new URL('../scripts/check-commit.ts',import.meta.url));
+const execute=promisify(execFile),loader=pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href,script=fileURLToPath(new URL('../scripts/check-commit.ts',import.meta.url));
 
 test('commit check accepts ignored credentials but rejects a force-staged private file without exposing its value',async()=>{
   const path=await mkdtemp(join(tmpdir(),'pi-commit-check-'));

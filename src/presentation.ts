@@ -4,10 +4,11 @@ export function progressText(status: TaskStatus): string {
   const steps = status.goal?.plan ?? [];
   const tools = status.activeTools ?? [];
   const lines: string[] = [];
-  if (steps.length) {
+  if (status.goal) {
     const done = steps.filter(step => step.status === "done");
     const current = steps.filter(step => step.status === "running");
-    lines.push(`步骤记录：${done.length}/${steps.length}（辅助进度）`);
+    const label = status.planPolicy === "advisory" ? "计划（辅助进度）" : "计划（历史交付约束）";
+    lines.push(`${label}：${done.length}/${steps.length}`);
     if (done.length) lines.push(`已完成步骤：${done.map(step => step.title).join("、")}`);
     if (current.length) lines.push(`当前步骤：${current.map(step => step.title).join("、")}`);
   }

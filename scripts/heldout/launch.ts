@@ -3,6 +3,7 @@ import { open, readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import { save, type RunConfig } from "./common.js";
 
 /** Experiment process control only; each worker uses the existing Pi execution engine. */
@@ -12,7 +13,7 @@ export async function launchRun(config: RunConfig, workerFile: string) {
   let interrupted = false, attempts = 0, processFailure: unknown;
   for (;;) {
     const logfile = await open(join(config.directory, "worker.log"), "a");
-    const child = spawn(process.execPath, ["--import", createRequire(import.meta.url).resolve("tsx"), workerFile, configFile], { stdio: ["ignore", logfile.fd, logfile.fd], env: process.env });
+    const child = spawn(process.execPath, ["--import", pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href, workerFile, configFile], { stdio: ["ignore", logfile.fd, logfile.fd], env: process.env });
     await logfile.close();
     await save(join(config.directory, "worker-process.json"), { pid: child.pid, attempt: attempts, startedAt: Date.now() });
     let exit: { code: number | null; signal: NodeJS.Signals | null } | undefined;

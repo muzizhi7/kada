@@ -87,7 +87,7 @@ test("task progress follows live Pi tools and saved steps across terminal reatta
     assert(!JSON.stringify(running.progress).includes("PRIVATE_ARGUMENT_MARKER"));
     const terminal = new ChatSession(client, event => events.push(event));
     await terminal.handle("/attach " + task.id);
-    assert(events.some(event => event.text.includes("步骤记录：1/2") && event.text.includes("当前步骤：生成压缩包")));
+    assert(events.some(event => event.text.includes("计划（辅助进度）：1/2") && event.text.includes("当前步骤：生成压缩包")));
     assert(events.some(event => event.text.includes("正在执行：archive_documents")));
     const count = events.length;
     await terminal.poll();
@@ -98,7 +98,7 @@ test("task progress follows live Pi tools and saved steps across terminal reatta
     await nextTerminal.handle("/attach " + task.id);
     assert(reattached.some(event => event.text.includes("当前步骤：生成压缩包")));
     await nextTerminal.handle("/status");
-    assert(reattached.some(event => event.text.includes("步骤记录：1/2") && event.text.includes("正在执行：archive_documents")));
+    assert(reattached.some(event => event.text.includes("计划（辅助进度）：1/2") && event.text.includes("正在执行：archive_documents")));
     released = true;
     await until(() => server.runtime.status(task.id), value => value.status === "waiting_user");
     await nextTerminal.poll();
